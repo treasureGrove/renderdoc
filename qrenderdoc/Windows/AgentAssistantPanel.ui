@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AgentAssistantPanel</class>
+ <widget class="QFrame" name="AgentAssistantPanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>560</width>
+    <height>720</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Pipeline Agent</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="helpLabel">
+     <property name="text">
+      <string>Ask an LLM in-app about the current capture. Providers include OpenAI, Anthropic, Gemini, Azure, custom OpenAI URL, OpenRouter, Zhipu GLM, and GitHub Models. Keys are stored in RenderDoc&apos;s config file on this machine (not encrypted). Prefer API keys with limited scope.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="llmGroup">
+     <property name="title">
+      <string>LLM connection</string>
+     </property>
+     <layout class="QFormLayout" name="llmFormLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="providerLabel">
+        <property name="text">
+         <string>Provider</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="providerCombo"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="tokenLabel">
+        <property name="text">
+         <string>API token</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="apiTokenEdit">
+        <property name="echoMode">
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="azureEndpointLabel">
+        <property name="text">
+         <string>Azure endpoint</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="azureEndpointEdit"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="azureDeployLabel">
+        <property name="text">
+         <string>Azure deployment</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="azureDeploymentEdit"/>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="compatibleUrlLabel">
+        <property name="text">
+         <string>Compatible base URL</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="compatibleBaseUrlEdit"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="modelLabel">
+        <property name="text">
+         <string>Model (choose preset or type any id)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QComboBox" name="modelCombo">
+        <property name="editable">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0" colspan="2">
+       <widget class="QCheckBox" name="includeDisasmCheck">
+        <property name="text">
+         <string>Include RenderDoc shader disassembly for bound stages (uses replay thread)</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="snapshotTitle">
+     <property name="text">
+      <string>Pipeline snapshot</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="snapshotEdit">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="questionTitle">
+     <property name="text">
+      <string>Your question</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="questionEdit"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="buttonRow">
+     <item>
+      <widget class="QPushButton" name="sendLLMButton">
+       <property name="text">
+        <string>Send to LLM</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="copyPromptButton">
+       <property name="text">
+        <string>Copy question + context</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="copyContextButton">
+       <property name="text">
+        <string>Copy context only</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="refreshButton">
+       <property name="text">
+        <string>Refresh</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="replyTitle">
+     <property name="text">
+      <string>LLM reply</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="replyEdit">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -55,6 +55,7 @@
 #include "Windows/PipelineState/PipelineStateViewer.h"
 #include "Windows/PixelHistoryView.h"
 #include "Windows/PythonShell.h"
+#include "Windows/AgentAssistantPanel.h"
 #include "Windows/ResourceInspector.h"
 #include "Windows/ShaderMessageViewer.h"
 #include "Windows/ShaderViewer.h"
@@ -2420,6 +2421,18 @@ IPythonShell *CaptureContext::GetPythonShell()
   return m_PythonShell;
 }
 
+IAgentAssistant *CaptureContext::GetAgentAssistant()
+{
+  if(m_AgentAssistant)
+    return m_AgentAssistant;
+
+  m_AgentAssistant = new AgentAssistantPanel(*this, m_MainWindow);
+  m_AgentAssistant->setObjectName(lit("agentAssistantPanel"));
+  setupDockWindow(m_AgentAssistant, true);
+
+  return m_AgentAssistant;
+}
+
 IResourceInspector *CaptureContext::GetResourceInspector()
 {
   if(m_ResourceInspector)
@@ -2500,6 +2513,11 @@ void CaptureContext::ShowTimelineBar()
 void CaptureContext::ShowPythonShell()
 {
   m_MainWindow->showPythonShell();
+}
+
+void CaptureContext::ShowAgentAssistant()
+{
+  m_MainWindow->showAgentAssistant();
 }
 
 void CaptureContext::ShowResourceInspector()
@@ -2741,6 +2759,10 @@ QWidget *CaptureContext::CreateBuiltinWindow(const rdcstr &objectName)
   {
     return GetPythonShell()->Widget();
   }
+  else if(objectName == "agentAssistantPanel")
+  {
+    return GetAgentAssistant()->Widget();
+  }
   else if(objectName == "resourceInspector")
   {
     return GetResourceInspector()->Widget();
@@ -2779,6 +2801,8 @@ void CaptureContext::BuiltinWindowClosed(QWidget *window)
     m_TimelineBar = NULL;
   else if(m_PythonShell && m_PythonShell->Widget() == window)
     m_PythonShell = NULL;
+  else if(m_AgentAssistant && m_AgentAssistant->Widget() == window)
+    m_AgentAssistant = NULL;
   else if(m_ResourceInspector && m_ResourceInspector->Widget() == window)
     m_ResourceInspector = NULL;
   else if(m_PerformanceCounterViewer && m_PerformanceCounterViewer->Widget() == window)

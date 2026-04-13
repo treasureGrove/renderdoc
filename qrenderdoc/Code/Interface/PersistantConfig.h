@@ -705,6 +705,62 @@ DECLARE_REFLECTION_STRUCT(BugReport);
       ":type: List[str]");                                                                         \
   CONFIG_SETTING(public, QVariantList, rdcarray<rdcstr>, AlwaysLoad_Extensions)                    \
                                                                                                    \
+  DOCUMENT(                                                                                        \
+      "Pipeline Agent: LLM backend. 0=OpenAI, 1=Anthropic, 2=Google Gemini, 3=Azure OpenAI, "       \
+      "4=OpenAI-compatible (custom base URL), 5=OpenRouter, 6=Zhipu GLM, 7=GitHub Models.\n"       \
+      "\n:"                                                                                        \
+      "type: int");                                                                                \
+  CONFIG_SETTING_VAL(public, int, int, AgentAssistant_LLMProvider, 0)                              \
+                                                                                                   \
+  DOCUMENT("Pipeline Agent: API keys/tokens (stored locally in the RenderDoc config file).\n"     \
+           "\n:"                                                                                   \
+           "type: str");                                                                           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenAIApiKey, "")                     \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AnthropicApiKey, "")                  \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GoogleApiKey, "")                     \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AzureApiKey, "")                      \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_CompatibleApiKey, "")                 \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenRouterApiKey, "")                 \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GLMApiKey, "")                        \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GitHubModelsApiKey, "")               \
+                                                                                                   \
+  DOCUMENT("Pipeline Agent: Azure OpenAI endpoint, e.g. https://myresource.openai.azure.com\n"     \
+           "\n:"                                                                                   \
+           "type: str");                                                                           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AzureEndpoint, "")                    \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AzureDeployment, "")                    \
+                                                                                                   \
+  DOCUMENT("Pipeline Agent: base URL for OpenAI-compatible APIs (e.g. DeepSeek).\n"                 \
+           "\n:"                                                                                   \
+           "type: str");                                                                           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_CompatibleBaseUrl,                    \
+                       "https://api.openai.com")                                                   \
+                                                                                                   \
+  DOCUMENT("Pipeline Agent: model id for OpenAI chat completions.\n" "\n:" "type: str");          \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenAIModel, "gpt-4o-mini")           \
+  DOCUMENT("Pipeline Agent: model id for Anthropic messages.\n" "\n:" "type: str");              \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AnthropicModel,                       \
+                       "claude-3-5-sonnet-20241022")                                               \
+  DOCUMENT("Pipeline Agent: Gemini model id.\n" "\n:" "type: str");                                \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GoogleModel, "gemini-1.5-flash")      \
+  DOCUMENT("Pipeline Agent: OpenRouter model slug (e.g. anthropic/claude-3.5-sonnet).\n" "\n:"      \
+           "type: str");                                                                           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenRouterModel,                     \
+                       "anthropic/claude-3.5-sonnet")                                              \
+  DOCUMENT("Pipeline Agent: Zhipu GLM model id (e.g. glm-4-flash).\n" "\n:" "type: str");          \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GLMModel, "glm-4-flash")              \
+  DOCUMENT("Pipeline Agent: GitHub Models model id (e.g. openai/gpt-4o-mini).\n" "\n:" "type: str"); \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GitHubModelsModel, "openai/gpt-4o-mini") \
+                                                                                                   \
+  DOCUMENT(                                                                                        \
+      "``True`` if Pipeline Agent should attach RenderDoc shader disassembly for bound stages "    \
+      "when querying an LLM.\n"                                                                    \
+      "\n:"                                                                                        \
+      "Defaults to ``True``."                                                                      \
+      ""                                                                                           \
+      ":type: bool");                                                                              \
+  CONFIG_SETTING_VAL(public, bool, bool, AgentAssistant_IncludeShaderDisassembly, true)            \
+                                                                                                   \
   DOCUMENT("");                                                                                    \
   CONFIG_SETTING(private, QVariantList, rdcarray<RemoteHost>, RemoteHostList)                      \
                                                                                                    \

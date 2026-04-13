@@ -720,6 +720,10 @@ struct CaptureContextInvoker : ObjectForwarder<ICaptureContext>
   {
     return InvokeRetFunction<IPythonShell *>(&ICaptureContext::GetPythonShell);
   }
+  virtual IAgentAssistant *GetAgentAssistant() override
+  {
+    return InvokeRetFunction<IAgentAssistant *>(&ICaptureContext::GetAgentAssistant);
+  }
   virtual IResourceInspector *GetResourceInspector() override
   {
     return InvokeRetFunction<IResourceInspector *>(&ICaptureContext::GetResourceInspector);
@@ -780,6 +784,10 @@ struct CaptureContextInvoker : ObjectForwarder<ICaptureContext>
   {
     return InvokeRetFunction<bool>(&ICaptureContext::HasPythonShell);
   }
+  virtual bool HasAgentAssistant() override
+  {
+    return InvokeRetFunction<bool>(&ICaptureContext::HasAgentAssistant);
+  }
   virtual bool HasResourceInspector() override
   {
     return InvokeRetFunction<bool>(&ICaptureContext::HasResourceInspector);
@@ -829,6 +837,10 @@ struct CaptureContextInvoker : ObjectForwarder<ICaptureContext>
   }
   virtual void ShowTimelineBar() override { InvokeVoidFunction(&ICaptureContext::ShowTimelineBar); }
   virtual void ShowPythonShell() override { InvokeVoidFunction(&ICaptureContext::ShowPythonShell); }
+  virtual void ShowAgentAssistant() override
+  {
+    InvokeVoidFunction(&ICaptureContext::ShowAgentAssistant);
+  }
   virtual void ShowResourceInspector() override
   {
     InvokeVoidFunction(&ICaptureContext::ShowResourceInspector);

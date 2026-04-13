@@ -1255,6 +1255,29 @@ protected:
 
 DECLARE_REFLECTION_STRUCT(IPythonShell);
 
+DOCUMENT(R"(Optional assistant panel for capturing a text summary of the current capture and pipeline
+state, for use with external AI tools.
+
+This window is retrieved by calling :meth:`CaptureContext.GetAgentAssistant`.
+)");
+struct IAgentAssistant
+{
+  DOCUMENT(R"(Retrieves the PySide2 QWidget for this :class:`AgentAssistantPanel` if PySide2 is available, or otherwise
+returns a unique opaque pointer that can be passed back to any RenderDoc functions expecting a
+QWidget.
+
+:return: Return the widget handle, either a PySide2 handle or an opaque handle.
+:rtype: QWidget
+)");
+  virtual QWidget *Widget() = 0;
+
+protected:
+  IAgentAssistant() = default;
+  ~IAgentAssistant() = default;
+};
+
+DECLARE_REFLECTION_STRUCT(IAgentAssistant);
+
 DOCUMENT(R"(A shader window used for viewing, editing, or debugging.
 
 This window is retrieved by calling :meth:`CaptureContext.ViewShader`,
@@ -2619,6 +2642,13 @@ on the UI thread.
 )");
   virtual IPythonShell *GetPythonShell() = 0;
 
+  DOCUMENT(R"(Retrieve the current singleton :class:`AgentAssistantPanel`.
+
+:return: The current window, which is created (but not shown) it there wasn't one open.
+:rtype: AgentAssistantPanel
+)");
+  virtual IAgentAssistant *GetAgentAssistant() = 0;
+
   DOCUMENT(R"(Retrieve the current singleton :class:`ResourceInspector`.
 
 :return: The current window, which is created (but not shown) it there wasn't one open.
@@ -2724,6 +2754,13 @@ on the UI thread.
 )");
   virtual bool HasPythonShell() = 0;
 
+  DOCUMENT(R"(Check if there is a current :class:`AgentAssistantPanel` open.
+
+:return: ``True`` if there is a window open.
+:rtype: bool
+)");
+  virtual bool HasAgentAssistant() = 0;
+
   DOCUMENT(R"(Check if there is a current :class:`ResourceInspector` open.
 
 :return: ``True`` if there is a window open.
@@ -2768,6 +2805,9 @@ place if needed.
   virtual void ShowTimelineBar() = 0;
   DOCUMENT("Raise the current :class:`PythonShell`, showing it in the default place if needed.");
   virtual void ShowPythonShell() = 0;
+  DOCUMENT(
+      "Raise the current :class:`AgentAssistantPanel`, showing it in the default place if needed.");
+  virtual void ShowAgentAssistant() = 0;
   DOCUMENT(
       "Raise the current :class:`ResourceInspector`, showing it in the default place if needed.");
   virtual void ShowResourceInspector() = 0;

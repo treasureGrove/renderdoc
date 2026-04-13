@@ -247,6 +247,7 @@ SOURCES += Code/qrenderdoc.cpp \
     Windows/Dialogs/TipsDialog.cpp \
     Windows/Dialogs/ConfigEditor.cpp \
     Windows/PythonShell.cpp \
+    Windows/AgentAssistantPanel.cpp \
     Windows/Dialogs/PerformanceCounterSelection.cpp \
     Windows/PerformanceCounterViewer.cpp \
     Windows/ResourceInspector.cpp \
@@ -336,6 +337,7 @@ HEADERS += Code/CaptureContext.h \
     Windows/Dialogs/TipsDialog.h \
     Windows/Dialogs/ConfigEditor.h \
     Windows/PythonShell.h \
+    Windows/AgentAssistantPanel.h \
     Windows/Dialogs/PerformanceCounterSelection.h \
     Windows/PerformanceCounterViewer.h \
     Windows/ResourceInspector.h \
@@ -383,6 +385,7 @@ FORMS    += Windows/Dialogs/AboutDialog.ui \
     Windows/Dialogs/TipsDialog.ui \
     Windows/Dialogs/ConfigEditor.ui \
     Windows/PythonShell.ui \
+    Windows/AgentAssistantPanel.ui \
     Windows/Dialogs/PerformanceCounterSelection.ui \
     Windows/PerformanceCounterViewer.ui \
     Windows/ResourceInspector.ui \

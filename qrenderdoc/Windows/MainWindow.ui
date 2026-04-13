@@ -155,6 +155,7 @@
     <addaction name="separator"/>
     <addaction name="action_Launch_Application_Window"/>
     <addaction name="action_Python_Shell"/>
+    <addaction name="action_Pipeline_Agent"/>
     <addaction name="action_Event_Browser"/>
     <addaction name="action_Texture_Viewer"/>
     <addaction name="action_Pipeline_State"/>
@@ -251,6 +252,11 @@
   <action name="action_Python_Shell">
    <property name="text">
     <string>P&amp;ython Shell</string>
+   </property>
+  </action>
+  <action name="action_Pipeline_Agent">
+   <property name="text">
+    <string>Pipeline &amp;Agent…</string>
    </property>
   </action>
   <action name="action_Event_Browser">

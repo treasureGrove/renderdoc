@@ -2655,6 +2655,16 @@ void MainWindow::on_action_Python_Shell_triggered()
     ui->toolWindowManager->addToolWindow(py, mainToolArea());
 }
 
+void MainWindow::on_action_Pipeline_Agent_triggered()
+{
+  QWidget *agent = m_Ctx.GetAgentAssistant()->Widget();
+
+  if(ui->toolWindowManager->toolWindows().contains(agent))
+    ToolWindowManager::raiseToolWindow(agent);
+  else
+    ui->toolWindowManager->addToolWindow(agent, mainToolArea());
+}
+
 void MainWindow::on_action_Resolve_Symbols_triggered()
 {
   ANALYTIC_SET(UIFeatures.CallstackResolve, true);
