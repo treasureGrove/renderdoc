@@ -107,19 +107,22 @@ static QString agentPanelStylesheetAnime()
 }
 #AgentAssistantPanel QLabel {
   font: 14px "Segoe UI", "Microsoft YaHei";
-  color: #E8F0F8;
+  color: #1A2D42;
   background-color: transparent;
 }
 #AgentAssistantPanel #helpLabel {
   font: 12px "Segoe UI", "Microsoft YaHei";
-  color: rgba(200, 220, 240, 180);
+  color: #2A3F58;
+  background-color: rgba(255, 255, 255, 140);
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 #AgentAssistantPanel QGroupBox {
   border: 1px solid rgba(255, 255, 255, 60);
   border-top: 1px solid rgba(255, 255, 255, 90);
   border-left: 1px solid rgba(255, 255, 255, 70);
   border-radius: 14px;
-  background-color: rgba(255, 255, 255, 45);
+  background-color: rgba(255, 255, 255, 78);
   margin-top: 16px;
   padding: 16px 12px 12px 12px;
 }
@@ -128,17 +131,17 @@ static QString agentPanelStylesheetAnime()
   left: 14px;
   padding: 0 8px;
   font: bold 14px "Segoe UI", "Microsoft YaHei";
-  color: rgba(180, 215, 245, 230);
+  color: #0F2438;
 }
 #AgentAssistantPanel QLineEdit,
 #AgentAssistantPanel QComboBox {
-  background-color: rgba(255, 255, 255, 50);
+  background-color: rgba(255, 255, 255, 92);
   border: 1px solid rgba(255, 255, 255, 60);
   border-bottom: 1px solid rgba(200, 220, 240, 80);
   border-radius: 8px;
   font: 14px "Segoe UI", "Microsoft YaHei";
   padding: 5px 10px;
-  color: #E8F0F8;
+  color: #1A2D42;
   min-height: 22px;
   selection-background-color: rgba(92, 173, 224, 160);
   selection-color: white;
@@ -151,16 +154,16 @@ static QString agentPanelStylesheetAnime()
   image: none;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 5px solid rgba(180, 215, 245, 200);
+  border-top: 5px solid #2A5580;
   margin-right: 8px;
 }
 #AgentAssistantPanel QComboBox QAbstractItemView {
-  background-color: rgba(30, 40, 65, 230);
-  border: 1px solid rgba(140, 190, 235, 80);
+  background-color: rgba(248, 250, 252, 245);
+  border: 1px solid rgba(100, 140, 180, 90);
   border-radius: 6px;
-  color: #E0ECF6;
-  selection-background-color: rgba(92, 173, 224, 100);
-  selection-color: white;
+  color: #1A2D42;
+  selection-background-color: rgba(92, 173, 224, 140);
+  selection-color: #0F1A28;
   padding: 4px;
   outline: none;
 }
@@ -182,13 +185,13 @@ static QString agentPanelStylesheetAnime()
 }
 #AgentAssistantPanel QLineEdit:disabled,
 #AgentAssistantPanel QComboBox:disabled {
-  color: rgba(180, 200, 220, 120);
-  background-color: rgba(255, 255, 255, 20);
+  color: #6A7D90;
+  background-color: rgba(255, 255, 255, 45);
   border: 1px solid rgba(255, 255, 255, 25);
 }
 #AgentAssistantPanel QPlainTextEdit {
-  background-color: rgba(255, 255, 255, 35);
-  color: #E0ECF6;
+  background-color: rgba(255, 255, 255, 88);
+  color: #1A2D42;
   border: 1px solid rgba(255, 255, 255, 50);
   border-top: 1px solid rgba(255, 255, 255, 70);
   border-radius: 12px;
@@ -198,44 +201,45 @@ static QString agentPanelStylesheetAnime()
   selection-color: white;
 }
 #AgentAssistantPanel #chatLog {
-  background-color: rgba(255, 255, 255, 25);
+  background-color: rgba(255, 255, 255, 82);
   border: 1px solid rgba(255, 255, 255, 40);
   border-top: 1px solid rgba(255, 255, 255, 65);
   border-left: 1px solid rgba(255, 255, 255, 50);
   border-radius: 14px;
   padding: 8px;
   font: 13px "Segoe UI", "Microsoft YaHei";
-  color: #E8F0F8;
+  color: #1A2D42;
 }
 #AgentAssistantPanel #snapshotToggleBtn {
   background-color: transparent;
   border: none;
-  color: rgba(140, 200, 240, 220);
+  color: #0B5A9E;
   font: bold 13px "Segoe UI", "Microsoft YaHei";
   text-align: left;
   padding: 2px 4px;
 }
 #AgentAssistantPanel #snapshotToggleBtn:hover {
-  color: rgba(180, 220, 250, 240);
+  color: #094A82;
+  text-decoration: underline;
 }
 #AgentAssistantPanel QPushButton {
-  background-color: rgba(255, 255, 255, 40);
+  background-color: rgba(255, 255, 255, 72);
   border: 1px solid rgba(255, 255, 255, 50);
   border-top: 1px solid rgba(255, 255, 255, 75);
   border-radius: 8px;
-  color: rgba(220, 235, 250, 220);
+  color: #1F3548;
   font: 14px "Segoe UI", "Microsoft YaHei";
   padding: 5px 12px 6px 12px;
   min-height: 24px;
 }
 #AgentAssistantPanel QPushButton:hover {
-  background-color: rgba(255, 255, 255, 65);
+  background-color: rgba(255, 255, 255, 88);
   border: 1px solid rgba(255, 255, 255, 80);
   border-top: 1px solid rgba(255, 255, 255, 110);
-  color: white;
+  color: #0F1E2C;
 }
 #AgentAssistantPanel QPushButton:pressed {
-  color: rgba(200, 220, 240, 180);
+  color: #2A4058;
   background-color: rgba(255, 255, 255, 30);
 }
 #AgentAssistantPanel QPushButton:disabled {
@@ -275,7 +279,7 @@ static QString agentPanelStylesheetAnime()
   background-color: rgba(92, 173, 224, 220);
 }
 #AgentAssistantPanel QCheckBox {
-  color: rgba(220, 235, 250, 210);
+  color: #1F3548;
   font: 14px "Segoe UI", "Microsoft YaHei";
   spacing: 8px;
   min-height: 22px;
@@ -308,13 +312,14 @@ static QString agentPanelStylesheetAnime()
 }
 #AgentAssistantPanel #statusLabel {
   font: bold 12px "Segoe UI", "Microsoft YaHei";
-  color: rgba(140, 210, 250, 220);
+  color: #0F2840;
   padding: 2px 4px;
-  background-color: transparent;
+  background-color: rgba(255, 255, 255, 100);
+  border-radius: 6px;
 }
 #AgentAssistantPanel #tokenUsageLabel {
   font: 11px "Segoe UI", "Microsoft YaHei";
-  color: rgba(160, 190, 220, 170);
+  color: #2A4560;
   padding: 0px 4px;
   background-color: transparent;
 }
@@ -338,23 +343,23 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(200, 100, 80, 20);
 }
 #AgentAssistantPanel #searchEdit {
-  background-color: rgba(255, 255, 255, 45);
+  background-color: rgba(255, 255, 255, 90);
   border: 1px solid rgba(255, 255, 255, 55);
   border-radius: 8px;
   font: 12px "Segoe UI", "Microsoft YaHei";
   padding: 3px 8px;
   min-height: 18px;
-  color: #E0ECF6;
+  color: #1A2D42;
 }
 #AgentAssistantPanel #searchNextBtn,
 #AgentAssistantPanel #searchCloseBtn {
   padding: 2px 8px;
   min-height: 18px;
   font: 12px "Segoe UI", "Microsoft YaHei";
-  background-color: rgba(255, 255, 255, 35);
+  background-color: rgba(255, 255, 255, 75);
   border: 1px solid rgba(255, 255, 255, 45);
   border-radius: 6px;
-  color: rgba(220, 235, 250, 200);
+  color: #1F3548;
 }
 #AgentAssistantPanel #searchNextBtn:hover,
 #AgentAssistantPanel #searchCloseBtn:hover {
@@ -3112,7 +3117,7 @@ QString AgentAssistantPanel::linkifyEIDs(const QString &html)
   {
     int pos = rx.pos();
     QString eid = rx.cap(1);
-    QString link = QStringLiteral("<a href=\"eid://%1\" style=\"color:#8CC8F0;\">EID %1</a>").arg(eid);
+    QString link = QStringLiteral("<a href=\"eid://%1\" style=\"color:#0868C8; font-weight:600;\">EID %1</a>").arg(eid);
     out.replace(pos, rx.matchedLength(), link);
     offset = pos + link.size();
   }
@@ -3133,23 +3138,23 @@ void AgentAssistantPanel::renderChatLog()
     {
       html += lit(
           "<div style=\"margin:6px 0; padding:10px 14px; "
-          "background-color:rgba(92,173,224,40); "
-          "border:1px solid rgba(92,173,224,50); "
-          "border-top:1px solid rgba(140,210,250,60); "
-          "border-radius:12px; text-align:right; color:#E0ECF6;\">"
-          "<b style=\"color:#8CC8F0;\">You:</b><br>%1</div>")
+          "background-color:rgba(200,230,250,95); "
+          "border:1px solid rgba(80,140,190,55); "
+          "border-top:1px solid rgba(120,180,220,70); "
+          "border-radius:12px; text-align:right; color:#142838;\">"
+          "<b style=\"color:#0B5A9E;\">You:</b><br>%1</div>")
                   .arg(escaped);
     }
     else
     {
       html += lit(
           "<div style=\"margin:6px 0; padding:10px 14px; "
-          "background-color:rgba(255,255,255,25); "
-          "border:1px solid rgba(255,255,255,35); "
-          "border-top:1px solid rgba(255,255,255,55); "
-          "border-left:1px solid rgba(255,255,255,40); "
-          "border-radius:12px; color:#E0ECF6;\">"
-          "<b style=\"color:#8CC8F0;\">Agent:</b><br>%1</div>")
+          "background-color:rgba(255,255,255,200); "
+          "border:1px solid rgba(90,130,170,45); "
+          "border-top:1px solid rgba(200,215,230,90); "
+          "border-left:1px solid rgba(180,200,220,70); "
+          "border-radius:12px; color:#1A2D42;\">"
+          "<b style=\"color:#0F2840;\">Agent:</b><br>%1</div>")
                   .arg(escaped);
     }
   }
