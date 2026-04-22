@@ -26,6 +26,7 @@
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QCommonStyle>
 #include <QDebug>
 #include <QPainter>
@@ -162,6 +163,13 @@ RDStyle::RDStyle(ColorScheme scheme) : RDTweakedNativeStyle(new QCommonStyle())
 
 RDStyle::~RDStyle()
 {
+  if(m_Scheme == AnimeGlass)
+  {
+    QCoreApplication *core = QCoreApplication::instance();
+    QApplication *app = qobject_cast<QApplication *>(core);
+    if(app)
+      app->setStyleSheet(QString());
+  }
 }
 
 void RDStyle::polishPalette(QPalette &pal) const
@@ -181,6 +189,15 @@ void RDStyle::polishPalette(QPalette &pal) const
     base = QColor(Qt::white);
     highlight = QColor(80, 110, 160);
     tooltip = QColor(250, 245, 200);
+  }
+  else if(m_Scheme == AnimeGlass)
+  {
+    // ACG frosted-glass LIGHT: bright pastel blue-white + sky-blue accent.
+    window = QColor(0xED, 0xF2, 0xFA);        // pale blue-white
+    windowText = QColor(0x2C, 0x3E, 0x55);   // dark navy text
+    base = QColor(0xF5, 0xF8, 0xFD);         // near-white card
+    highlight = QColor(0x5C, 0xAD, 0xE0);   // soft sky blue
+    tooltip = QColor(0xF0, 0xF5, 0xFC);      // very light popup
   }
   else
   {
@@ -203,16 +220,24 @@ void RDStyle::polishPalette(QPalette &pal) const
 
   if(m_Scheme == Light)
     pal.setColor(QPalette::AlternateBase, base.darker(110));
+  else if(m_Scheme == AnimeGlass)
+    pal.setColor(QPalette::AlternateBase, QColor(0xE4, 0xED, 0xF6));
   else
     pal.setColor(QPalette::AlternateBase, base.lighter(110));
 
-  if(m_Scheme == Dark)
+  if(m_Scheme == Dark || m_Scheme == AnimeGlass)
   {
     pal.setColor(QPalette::BrightText, text);
   }
 
   pal.setColor(QPalette::ToolTipBase, tooltip);
   pal.setColor(QPalette::ToolTipText, text);
+
+  if(m_Scheme == AnimeGlass)
+  {
+    pal.setColor(QPalette::Button, QColor(0xE0, 0xEB, 0xF5));
+    pal.setColor(QPalette::ButtonText, QColor(0x2C, 0x3E, 0x55));
+  }
 
   pal.setColor(QPalette::Highlight, highlight);
   // inactive highlight is desaturated
@@ -223,7 +248,8 @@ void RDStyle::polishPalette(QPalette &pal) const
   pal.setColor(QPalette::HighlightedText, Qt::white);
 
   // links are based on the highlight colour
-  QColor link = m_Scheme == Light ? highlight.darker(125) : highlight.lighter(105);
+  QColor link = m_Scheme == Light ? highlight.darker(125)
+                                  : (m_Scheme == AnimeGlass ? QColor(0x3A, 0x88, 0xC4) : highlight.lighter(105));
   pal.setColor(QPalette::Link, link);
 
   // visited links are desaturated
@@ -285,6 +311,74 @@ void RDStyle::polish(QWidget *widget)
 void RDStyle::polish(QApplication *app)
 {
   app->setPalette(standardPalette());
+
+  if(m_Scheme == AnimeGlass)
+  {
+    app->setStyleSheet(lit(
+        "QMainWindow::separator { background: rgba(130,175,220,60); width: 3px; height: 3px; }"
+
+        "QToolBar { background: rgba(232,239,248,200); border: 1px solid rgba(130,175,220,50);"
+        " border-radius: 6px; margin: 2px; spacing: 5px; }"
+
+        "QMenuBar { background: rgba(237,242,250,220); color: #2C3E55;"
+        " border-bottom: 1px solid rgba(130,175,220,60); padding: 2px; }"
+        "QMenuBar::item { padding: 4px 10px; border-radius: 4px; }"
+        "QMenuBar::item:selected { background: rgba(92,173,224,50); }"
+        "QMenu { background: rgba(245,248,253,235); border: 1px solid rgba(130,175,220,80);"
+        " border-radius: 8px; padding: 4px; }"
+        "QMenu::item { padding: 5px 28px 5px 20px; border-radius: 4px; color: #2C3E55; }"
+        "QMenu::item:selected { background: rgba(92,173,224,55); }"
+        "QMenu::separator { height: 1px; background: rgba(130,175,220,50); margin: 4px 12px; }"
+
+        "QStatusBar { background: rgba(237,242,250,200); color: #6080A0; }"
+
+        "QTabWidget::pane { border: 1px solid rgba(130,175,220,60);"
+        " background: rgba(245,248,253,180); border-radius: 4px; }"
+        "QTabBar::tab { background: rgba(232,239,248,160); border: 1px solid rgba(130,175,220,50);"
+        " border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px;"
+        " padding: 4px 12px; margin-right: 2px; color: #3A5570; }"
+        "QTabBar::tab:selected { background: rgba(255,255,255,200);"
+        " border-bottom: 2px solid #5CADE0; color: #2C3E55; }"
+        "QTabBar::tab:hover:!selected { background: rgba(220,235,250,180); }"
+
+        "QDockWidget { titlebar-close-icon: none; titlebar-normal-icon: none; }"
+        "QDockWidget::title { background: rgba(232,239,248,180);"
+        " border: 1px solid rgba(130,175,220,40); border-radius: 4px;"
+        " padding: 4px 8px; color: #3A5570; }"
+
+        "QToolTip { background: rgba(245,248,253,230); border: 1px solid rgba(130,175,220,100);"
+        " border-radius: 6px; color: #2C3E55; padding: 5px 8px; }"
+
+        "QScrollBar:vertical { background: rgba(237,242,250,80); width: 10px;"
+        " border-radius: 5px; margin: 0; }"
+        "QScrollBar::handle:vertical { background: rgba(130,175,220,100);"
+        " border-radius: 4px; min-height: 30px; margin: 1px; }"
+        "QScrollBar::handle:vertical:hover { background: rgba(92,173,224,150); }"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+        "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
+        "QScrollBar:horizontal { background: rgba(237,242,250,80); height: 10px;"
+        " border-radius: 5px; margin: 0; }"
+        "QScrollBar::handle:horizontal { background: rgba(130,175,220,100);"
+        " border-radius: 4px; min-width: 30px; margin: 1px; }"
+        "QScrollBar::handle:horizontal:hover { background: rgba(92,173,224,150); }"
+        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
+        "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
+
+        "QHeaderView::section { background: rgba(232,239,248,180);"
+        " border: 1px solid rgba(130,175,220,40); padding: 4px 8px; color: #3A5570; }"
+
+        "QTreeView, QListView, QTableView { background: rgba(250,252,255,200);"
+        " alternate-background-color: rgba(232,239,248,120);"
+        " border: 1px solid rgba(130,175,220,50); border-radius: 4px; }"
+        "QTreeView::item:selected, QListView::item:selected, QTableView::item:selected {"
+        " background: rgba(92,173,224,60); color: #2C3E55; }"
+        "QTreeView::item:hover, QListView::item:hover, QTableView::item:hover {"
+        " background: rgba(92,173,224,30); }"
+
+        "QSplitter::handle { background: rgba(130,175,220,40); }"
+        "QSplitter::handle:hover { background: rgba(92,173,224,80); }"
+    ));
+  }
 }
 
 void RDStyle::unpolish(QWidget *widget)
@@ -981,7 +1075,8 @@ void RDStyle::drawComplexControl(ComplexControl control, const QStyleOptionCompl
     labelRect.setRight(subControlRect(CC_GroupBox, opt, QStyle::SC_GroupBoxFrame, widget).right());
     labelRect.adjust(-Constants::GroupHMargin / 2, 0, -Constants::GroupHMargin, 0);
 
-    p->setPen(QPen(opt->palette.brush(m_Scheme == Light ? QPalette::Mid : QPalette::Midlight), 1.0));
+    p->setPen(QPen(opt->palette.brush(m_Scheme == Light ? QPalette::Mid : QPalette::Midlight),
+                   m_Scheme == AnimeGlass ? 1.25 : 1.0));
     p->drawLine(labelRect.bottomLeft(), labelRect.bottomRight());
 
     if(opt->subControls & QStyle::SC_GroupBoxCheckBox)
@@ -1636,7 +1731,13 @@ void RDStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *opt, Q
 const QBrush &RDStyle::outlineBrush(const QPalette &pal, QPalette::ColorRole role) const
 {
   if(role == QPalette::Text || role == QPalette::WindowText)
-    return m_Scheme == Light ? pal.brush(QPalette::WindowText) : pal.brush(QPalette::Light);
+  {
+    if(m_Scheme == Light)
+      return pal.brush(QPalette::WindowText);
+    if(m_Scheme == AnimeGlass)
+      return pal.brush(QPalette::Midlight);
+    return pal.brush(QPalette::Light);
+  }
 
   return pal.brush(role);
 }
@@ -2330,10 +2431,14 @@ void RDStyle::drawControl(ControlElement control, const QStyleOption *opt, QPain
 void RDStyle::drawRoundedRectBorder(const QStyleOption *opt, QPainter *p, const QWidget *widget,
                                     QPalette::ColorRole fillRole, bool shadow) const
 {
-  QPen outlinePen(outlineBrush(opt->palette), 1.0);
+  const qreal animeCorner = (m_Scheme == AnimeGlass) ? 6.0 : 1.0;
+
+  QPen outlinePen(outlineBrush(opt->palette), m_Scheme == AnimeGlass ? 1.15 : 1.0);
 
   if(opt->state & State_HasFocus)
-    outlinePen = QPen(opt->palette.brush(QPalette::Highlight), 1.5);
+    outlinePen = QPen(opt->palette.brush(QPalette::Highlight), m_Scheme == AnimeGlass ? 2.0 : 1.5);
+  else if(m_Scheme == AnimeGlass)
+    outlinePen.setColor(QColor(0xC0, 0xD4, 0xE8));
 
   p->save();
 
@@ -2350,7 +2455,7 @@ void RDStyle::drawRoundedRectBorder(const QStyleOption *opt, QPainter *p, const 
     rect.setTop(rect.top() + yshift);
 
     QPainterPath path;
-    path.addRoundedRect(rect, 1.0, 1.0);
+    path.addRoundedRect(rect, animeCorner, animeCorner);
 
     p->fillPath(path, opt->palette.brush(QPalette::Midlight));
 
@@ -2366,11 +2471,13 @@ void RDStyle::drawRoundedRectBorder(const QStyleOption *opt, QPainter *p, const 
     }
 
     QPainterPath path;
-    path.addRoundedRect(rect, 1.0, 1.0);
+    path.addRoundedRect(rect, animeCorner, animeCorner);
 
     if(shadow)
     {
-      p->setPen(QPen(opt->palette.brush(QPalette::Shadow), 1.0));
+      const QColor drop =
+          (m_Scheme == AnimeGlass) ? QColor(140, 170, 210, 40) : QColor(20, 10, 40, 120);
+      p->setPen(QPen(drop, 1.0));
       p->drawPath(path.translated(QPointF(1.0, 1.0)));
     }
 

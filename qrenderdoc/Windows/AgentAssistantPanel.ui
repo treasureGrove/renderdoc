@@ -13,7 +13,25 @@
   <property name="windowTitle">
    <string>Pipeline Agent</string>
   </property>
+  <property name="autoFillBackground">
+   <bool>false</bool>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>10</number>
+   </property>
+   <property name="leftMargin">
+    <number>14</number>
+   </property>
+   <property name="topMargin">
+    <number>12</number>
+   </property>
+   <property name="rightMargin">
+    <number>14</number>
+   </property>
+   <property name="bottomMargin">
+    <number>12</number>
+   </property>
    <item>
     <widget class="QLabel" name="helpLabel">
      <property name="text">
@@ -87,16 +105,12 @@
       <item row="5" column="0">
        <widget class="QLabel" name="modelLabel">
         <property name="text">
-         <string>Model (choose preset or type any id)</string>
+         <string>Model</string>
         </property>
        </widget>
       </item>
       <item row="5" column="1">
-       <widget class="QComboBox" name="modelCombo">
-        <property name="editable">
-         <bool>true</bool>
-        </property>
-       </widget>
+       <widget class="QComboBox" name="modelCombo"/>
       </item>
       <item row="6" column="0" colspan="2">
        <widget class="QCheckBox" name="includeDisasmCheck">
@@ -112,73 +126,179 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="snapshotTitle">
+    <widget class="QPushButton" name="continueToChatButton">
      <property name="text">
-      <string>Pipeline snapshot</string>
+      <string>Save token and continue</string>
      </property>
     </widget>
    </item>
    <item>
-    <widget class="QPlainTextEdit" name="snapshotEdit">
-     <property name="readOnly">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="questionTitle">
-     <property name="text">
-      <string>Your question</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLineEdit" name="questionEdit"/>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="buttonRow">
-     <item>
-      <widget class="QPushButton" name="sendLLMButton">
-       <property name="text">
-        <string>Send to LLM</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="copyPromptButton">
-       <property name="text">
-        <string>Copy question + context</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="copyContextButton">
-       <property name="text">
-        <string>Copy context only</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="refreshButton">
-       <property name="text">
-        <string>Refresh</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="replyTitle">
-     <property name="text">
-      <string>LLM reply</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPlainTextEdit" name="replyEdit">
-     <property name="readOnly">
-      <bool>true</bool>
-     </property>
+    <widget class="QWidget" name="chatSection">
+     <layout class="QVBoxLayout" name="chatSectionLayout">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>6</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="snapshotToggleBtn">
+        <property name="text">
+         <string>Pipeline snapshot (click to expand)</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPlainTextEdit" name="snapshotEdit">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="statusLabel">
+        <property name="text">
+         <string>Ready</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTextBrowser" name="chatLog">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>200</height>
+         </size>
+        </property>
+        <property name="openExternalLinks">
+         <bool>false</bool>
+        </property>
+        <property name="openLinks">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="searchRow">
+        <item>
+         <widget class="QLineEdit" name="searchEdit">
+          <property name="placeholderText">
+           <string>Search chat (Ctrl+F)...</string>
+          </property>
+          <property name="visible">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="searchNextBtn">
+          <property name="text">
+           <string>Next</string>
+          </property>
+          <property name="visible">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="searchCloseBtn">
+          <property name="text">
+           <string>X</string>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>28</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="visible">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="tokenUsageLabel">
+        <property name="text">
+         <string></string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="questionEdit">
+        <property name="placeholderText">
+         <string>Ask about the current capture...</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="buttonRow">
+        <item>
+         <widget class="QPushButton" name="sendLLMButton">
+          <property name="text">
+           <string>Send</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="stopButton">
+          <property name="text">
+           <string>Stop</string>
+          </property>
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="copyPromptButton">
+          <property name="text">
+           <string>Copy Q+Context</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="copyContextButton">
+          <property name="text">
+           <string>Copy context</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="refreshButton">
+          <property name="text">
+           <string>Refresh</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>

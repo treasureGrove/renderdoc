@@ -44,6 +44,14 @@ const ThemeDescriptor availStyles[] = {
         []() { return new RDStyle(RDStyle::Dark); }),
 
     ThemeDescriptor(
+        lit("RDAnimeGlass"), QApplication::translate("RDStyle", "Anime (ACG)"),
+        QApplication::translate(
+            "RDStyle",
+            "Anime (ACG): dark theme with cyan accent, based on the ElaWidgetTools palette "
+            "(Liniyous/ElaWidgetTools, MIT). Rounded corners, semi-transparent cards."),
+        []() { return new RDStyle(RDStyle::AnimeGlass); }),
+
+    ThemeDescriptor(
         lit("Native"), QApplication::translate("RDStyle", "Native"),
         QApplication::translate("RDStyle",
                                 "Native: uses the built-in Qt native widgets for your platform."),

@@ -59,7 +59,8 @@ public:
   enum ColorScheme
   {
     Light,
-    Dark
+    Dark,
+    AnimeGlass,
   };
   RDStyle(ColorScheme scheme);
   ~RDStyle();

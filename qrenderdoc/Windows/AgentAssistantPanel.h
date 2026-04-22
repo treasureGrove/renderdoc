@@ -25,10 +25,16 @@
 #pragma once
 
 #include <QFrame>
+#include <QList>
+#include <QPair>
+#include <QPixmap>
 #include "Code/Interface/QRDInterface.h"
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QShortcut;
+class QShowEvent;
+class QUrl;
 
 namespace Ui
 {
@@ -50,25 +56,77 @@ public:
   void OnSelectedEventChanged(uint32_t eventId) override;
   void OnEventChanged(uint32_t eventId) override;
 
+protected:
+  void showEvent(QShowEvent *e) override;
+  void paintEvent(QPaintEvent *e) override;
+
 private slots:
   void copyPrompt();
   void copyContextOnly();
   void refreshSnapshot();
   void sendToLLM();
+  void stopLLM();
   void onLLMFinished();
   void onProviderChanged(int idx);
+  void onContinueToChat();
+  void onPersistConnectionFields();
+  void onChatLinkClicked(const QUrl &url);
+  void onSnapshotToggled(bool checked);
+  void onSearchNext();
+  void onSearchClose();
+  void onSearchToggle();
 
 private:
   Ui::AgentAssistantPanel *ui;
   ICaptureContext &m_Ctx;
   QNetworkAccessManager *m_net = NULL;
+  QNetworkReply *m_activeReply = NULL;
+  QShortcut *m_searchShortcut = NULL;
+  QPixmap m_bgPixmap;
+  QPixmap m_bgScaled;
+  QSize m_bgScaledSize;
   int m_activeLLMProvider = -1;
+  QString m_helpTextFull;
+  int m_searchMatchIndex = -1;
+
+  int m_totalPromptTokens = 0;
+  int m_totalCompletionTokens = 0;
+
+  struct ChatMessage
+  {
+    bool isUser;
+    QString text;
+  };
+  QList<ChatMessage> m_chatHistory;
+
+  int m_toolUseRound = 0;
+  static const int kMaxToolUseRounds = 15;
+  QString m_lastUserQuestion;
+  uint32_t m_preToolEID = 0;
 
   void rebuildSnapshot();
   QString formatPipelineSnapshot();
+  QString formatEventTree();
+  QString snapshotForEID(uint32_t eid);
+  QString scanPassSummary(uint32_t markerEID);
   void loadSettingsFromConfig();
   void saveSettingsToConfig();
   void updateProviderUi();
   void setLLMUiBusy(bool busy);
   void repopulateModelCombo();
+  bool hasMinimumLLMConnection() const;
+  void updateSetupVsChatLayout();
+  void applyPanelChrome();
+  void applyReadableFonts();
+  void appendChatMessage(bool isUser, const QString &text);
+  void renderChatLog();
+  QString linkifyEIDs(const QString &text);
+  uint32_t parseFetchEID(const QString &text);
+  uint32_t parseScanPass(const QString &text);
+  void sendFollowUpWithData(uint32_t eid);
+  void sendFollowUpWithScan(uint32_t markerEID);
+  void sendLLMRequestRaw(const QString &userBody);
+  void setStatusText(const QString &text);
+  void parseTokenUsage(const QJsonObject &root);
+  void updateTokenLabel();
 };

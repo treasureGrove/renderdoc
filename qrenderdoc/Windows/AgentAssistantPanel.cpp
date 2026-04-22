@@ -38,6 +38,25 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QCheckBox>
+#include <QFontDatabase>
+#include <QLabel>
+#include <QtGlobal>
+#include <QPalette>
+#include <QRegExp>
+#include <QKeySequence>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QPainter>
+#include <QPaintEvent>
+#include <QScrollBar>
+#include <QShortcut>
+#include <QShowEvent>
+#include <QTextBrowser>
+#include <QTextCharFormat>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <QTextStream>
 #include <QUrlQuery>
 #include "Code/Interface/PersistantConfig.h"
@@ -74,17 +93,746 @@ enum AgentDataSkill : uint32_t
   AgentSkill_All = 0xFFFFFFFFu
 };
 
-static bool questionContainsAny(const QString &haystack, const std::initializer_list<const char *> &subs)
+// ACG frosted-glass theme with anime background image via QSS border-image.
+// All controls use white semi-transparent glass over the background.
+static QString agentPanelStylesheetAnime()
+{
+  return QStringLiteral(R"CSS(
+#AgentAssistantPanel {
+  background: transparent;
+  border: none;
+}
+#AgentAssistantPanel QWidget {
+  background: transparent;
+}
+#AgentAssistantPanel QLabel {
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  color: #E8F0F8;
+  background-color: transparent;
+}
+#AgentAssistantPanel #helpLabel {
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  color: rgba(200, 220, 240, 180);
+}
+#AgentAssistantPanel QGroupBox {
+  border: 1px solid rgba(255, 255, 255, 60);
+  border-top: 1px solid rgba(255, 255, 255, 90);
+  border-left: 1px solid rgba(255, 255, 255, 70);
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 45);
+  margin-top: 16px;
+  padding: 16px 12px 12px 12px;
+}
+#AgentAssistantPanel QGroupBox::title {
+  subcontrol-origin: margin;
+  left: 14px;
+  padding: 0 8px;
+  font: bold 14px "Segoe UI", "Microsoft YaHei";
+  color: rgba(180, 215, 245, 230);
+}
+#AgentAssistantPanel QLineEdit,
+#AgentAssistantPanel QComboBox {
+  background-color: rgba(255, 255, 255, 50);
+  border: 1px solid rgba(255, 255, 255, 60);
+  border-bottom: 1px solid rgba(200, 220, 240, 80);
+  border-radius: 8px;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  padding: 5px 10px;
+  color: #E8F0F8;
+  min-height: 22px;
+  selection-background-color: rgba(92, 173, 224, 160);
+  selection-color: white;
+}
+#AgentAssistantPanel QComboBox::drop-down {
+  border: none;
+  width: 24px;
+}
+#AgentAssistantPanel QComboBox::down-arrow {
+  image: none;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(180, 215, 245, 200);
+  margin-right: 8px;
+}
+#AgentAssistantPanel QComboBox QAbstractItemView {
+  background-color: rgba(30, 40, 65, 230);
+  border: 1px solid rgba(140, 190, 235, 80);
+  border-radius: 6px;
+  color: #E0ECF6;
+  selection-background-color: rgba(92, 173, 224, 100);
+  selection-color: white;
+  padding: 4px;
+  outline: none;
+}
+#AgentAssistantPanel QComboBox QAbstractItemView::item {
+  padding: 4px 8px;
+  min-height: 22px;
+}
+#AgentAssistantPanel QComboBox QAbstractItemView::item:hover {
+  background-color: rgba(92, 173, 224, 60);
+}
+#AgentAssistantPanel QLineEdit:hover,
+#AgentAssistantPanel QComboBox:hover {
+  background-color: rgba(255, 255, 255, 70);
+  border: 1px solid rgba(255, 255, 255, 90);
+}
+#AgentAssistantPanel QLineEdit:focus {
+  border: 1px solid rgba(92, 173, 224, 160);
+  border-bottom: 1px solid rgba(74, 154, 213, 180);
+}
+#AgentAssistantPanel QLineEdit:disabled,
+#AgentAssistantPanel QComboBox:disabled {
+  color: rgba(180, 200, 220, 120);
+  background-color: rgba(255, 255, 255, 20);
+  border: 1px solid rgba(255, 255, 255, 25);
+}
+#AgentAssistantPanel QPlainTextEdit {
+  background-color: rgba(255, 255, 255, 35);
+  color: #E0ECF6;
+  border: 1px solid rgba(255, 255, 255, 50);
+  border-top: 1px solid rgba(255, 255, 255, 70);
+  border-radius: 12px;
+  padding: 10px;
+  font: 11pt Consolas, "Cascadia Mono", "Courier New", monospace;
+  selection-background-color: rgba(92, 173, 224, 160);
+  selection-color: white;
+}
+#AgentAssistantPanel #chatLog {
+  background-color: rgba(255, 255, 255, 25);
+  border: 1px solid rgba(255, 255, 255, 40);
+  border-top: 1px solid rgba(255, 255, 255, 65);
+  border-left: 1px solid rgba(255, 255, 255, 50);
+  border-radius: 14px;
+  padding: 8px;
+  font: 13px "Segoe UI", "Microsoft YaHei";
+  color: #E8F0F8;
+}
+#AgentAssistantPanel #snapshotToggleBtn {
+  background-color: transparent;
+  border: none;
+  color: rgba(140, 200, 240, 220);
+  font: bold 13px "Segoe UI", "Microsoft YaHei";
+  text-align: left;
+  padding: 2px 4px;
+}
+#AgentAssistantPanel #snapshotToggleBtn:hover {
+  color: rgba(180, 220, 250, 240);
+}
+#AgentAssistantPanel QPushButton {
+  background-color: rgba(255, 255, 255, 40);
+  border: 1px solid rgba(255, 255, 255, 50);
+  border-top: 1px solid rgba(255, 255, 255, 75);
+  border-radius: 8px;
+  color: rgba(220, 235, 250, 220);
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  padding: 5px 12px 6px 12px;
+  min-height: 24px;
+}
+#AgentAssistantPanel QPushButton:hover {
+  background-color: rgba(255, 255, 255, 65);
+  border: 1px solid rgba(255, 255, 255, 80);
+  border-top: 1px solid rgba(255, 255, 255, 110);
+  color: white;
+}
+#AgentAssistantPanel QPushButton:pressed {
+  color: rgba(200, 220, 240, 180);
+  background-color: rgba(255, 255, 255, 30);
+}
+#AgentAssistantPanel QPushButton:disabled {
+  color: rgba(180, 200, 220, 80);
+  background-color: rgba(255, 255, 255, 15);
+  border: 1px solid rgba(255, 255, 255, 20);
+}
+#AgentAssistantPanel #sendLLMButton {
+  color: white;
+  background-color: rgba(92, 173, 224, 180);
+  border: 1px solid rgba(92, 173, 224, 140);
+  border-top: 1px solid rgba(140, 210, 250, 180);
+  font-weight: bold;
+}
+#AgentAssistantPanel #sendLLMButton:hover {
+  background-color: rgba(92, 173, 224, 220);
+  border-top: 1px solid rgba(150, 220, 255, 200);
+}
+#AgentAssistantPanel #sendLLMButton:pressed {
+  background-color: rgba(70, 150, 200, 200);
+  border: 1px solid rgba(70, 150, 200, 180);
+}
+#AgentAssistantPanel #sendLLMButton:disabled {
+  color: rgba(180, 200, 220, 100);
+  background-color: rgba(92, 173, 224, 40);
+  border: 1px solid rgba(92, 173, 224, 30);
+}
+#AgentAssistantPanel #continueToChatButton {
+  color: white;
+  background-color: rgba(92, 173, 224, 180);
+  border: 1px solid rgba(92, 173, 224, 140);
+  border-top: 1px solid rgba(140, 210, 250, 180);
+  font-weight: bold;
+  min-height: 30px;
+}
+#AgentAssistantPanel #continueToChatButton:hover {
+  background-color: rgba(92, 173, 224, 220);
+}
+#AgentAssistantPanel QCheckBox {
+  color: rgba(220, 235, 250, 210);
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  spacing: 8px;
+  min-height: 22px;
+}
+#AgentAssistantPanel QCheckBox::indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 60);
+  background-color: rgba(255, 255, 255, 35);
+}
+#AgentAssistantPanel QCheckBox::indicator:hover {
+  background-color: rgba(255, 255, 255, 55);
+  border: 1px solid rgba(255, 255, 255, 80);
+}
+#AgentAssistantPanel QCheckBox::indicator:checked {
+  background-color: rgba(92, 173, 224, 180);
+  border: 1px solid rgba(92, 173, 224, 150);
+}
+#AgentAssistantPanel QCheckBox::indicator:checked:hover {
+  background-color: rgba(92, 173, 224, 220);
+  border: 1px solid rgba(92, 173, 224, 190);
+}
+#AgentAssistantPanel QCheckBox:disabled {
+  color: rgba(180, 200, 220, 80);
+}
+#AgentAssistantPanel QCheckBox::indicator:disabled {
+  border: 1px solid rgba(255, 255, 255, 20);
+  background-color: rgba(255, 255, 255, 12);
+}
+#AgentAssistantPanel #statusLabel {
+  font: bold 12px "Segoe UI", "Microsoft YaHei";
+  color: rgba(140, 210, 250, 220);
+  padding: 2px 4px;
+  background-color: transparent;
+}
+#AgentAssistantPanel #tokenUsageLabel {
+  font: 11px "Segoe UI", "Microsoft YaHei";
+  color: rgba(160, 190, 220, 170);
+  padding: 0px 4px;
+  background-color: transparent;
+}
+#AgentAssistantPanel #stopButton {
+  color: white;
+  background-color: rgba(224, 90, 70, 170);
+  border: 1px solid rgba(224, 90, 70, 130);
+  border-top: 1px solid rgba(255, 140, 120, 150);
+  font-weight: bold;
+}
+#AgentAssistantPanel #stopButton:hover {
+  background-color: rgba(224, 90, 70, 210);
+  border-top: 1px solid rgba(255, 150, 130, 180);
+}
+#AgentAssistantPanel #stopButton:pressed {
+  background-color: rgba(200, 70, 50, 200);
+}
+#AgentAssistantPanel #stopButton:disabled {
+  color: rgba(180, 200, 220, 80);
+  background-color: rgba(200, 100, 80, 30);
+  border: 1px solid rgba(200, 100, 80, 20);
+}
+#AgentAssistantPanel #searchEdit {
+  background-color: rgba(255, 255, 255, 45);
+  border: 1px solid rgba(255, 255, 255, 55);
+  border-radius: 8px;
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  padding: 3px 8px;
+  min-height: 18px;
+  color: #E0ECF6;
+}
+#AgentAssistantPanel #searchNextBtn,
+#AgentAssistantPanel #searchCloseBtn {
+  padding: 2px 8px;
+  min-height: 18px;
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  background-color: rgba(255, 255, 255, 35);
+  border: 1px solid rgba(255, 255, 255, 45);
+  border-radius: 6px;
+  color: rgba(220, 235, 250, 200);
+}
+#AgentAssistantPanel #searchNextBtn:hover,
+#AgentAssistantPanel #searchCloseBtn:hover {
+  background-color: rgba(255, 255, 255, 60);
+}
+)CSS");
+}
+
+// Dark panel for RDDark / Native-dark.
+static QString agentPanelStylesheetDark()
+{
+  return QStringLiteral(R"CSS(
+#AgentAssistantPanel {
+  background-color: #1A2235;
+}
+#AgentAssistantPanel QLabel {
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  color: #D0DAE8;
+  background-color: transparent;
+}
+#AgentAssistantPanel #helpLabel {
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  color: #8898B0;
+}
+#AgentAssistantPanel QGroupBox {
+  border: 1px solid rgba(140, 185, 230, 80);
+  border-radius: 10px;
+  background-color: rgba(180, 210, 240, 50);
+  margin-top: 16px;
+  padding: 16px 12px 12px 12px;
+}
+#AgentAssistantPanel QGroupBox::title {
+  subcontrol-origin: margin;
+  left: 14px;
+  padding: 0 8px;
+  font: bold 14px "Segoe UI", "Microsoft YaHei";
+  color: #9CC0E0;
+}
+#AgentAssistantPanel QLineEdit,
+#AgentAssistantPanel QComboBox {
+  background-color: rgba(160, 195, 235, 40);
+  border: 1px solid rgba(140, 185, 230, 70);
+  border-bottom: 1px solid rgba(130, 180, 225, 110);
+  border-radius: 6px;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  padding: 5px 10px;
+  color: #D0DAE8;
+  min-height: 22px;
+  selection-background-color: rgba(140, 200, 234, 160);
+  selection-color: #1A2235;
+}
+#AgentAssistantPanel QComboBox::drop-down {
+  border: none;
+  width: 24px;
+}
+#AgentAssistantPanel QComboBox::down-arrow {
+  image: none;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #90C8E8;
+  margin-right: 8px;
+}
+#AgentAssistantPanel QComboBox QAbstractItemView {
+  background-color: #222D42;
+  border: 1px solid rgba(140, 185, 230, 80);
+  border-radius: 6px;
+  color: #D0DAE8;
+  selection-background-color: rgba(140, 200, 234, 120);
+  selection-color: #1A2235;
+  padding: 4px;
+  outline: none;
+}
+#AgentAssistantPanel QComboBox QAbstractItemView::item {
+  padding: 4px 8px;
+  min-height: 22px;
+}
+#AgentAssistantPanel QComboBox QAbstractItemView::item:hover {
+  background-color: rgba(140, 200, 234, 60);
+}
+#AgentAssistantPanel QLineEdit:hover,
+#AgentAssistantPanel QComboBox:hover {
+  background-color: rgba(160, 195, 235, 55);
+  border: 1px solid rgba(140, 185, 230, 100);
+}
+#AgentAssistantPanel QLineEdit:focus {
+  border: 1px solid rgba(140, 200, 234, 120);
+  border-bottom: 1px solid rgba(140, 200, 234, 180);
+}
+#AgentAssistantPanel QLineEdit:disabled,
+#AgentAssistantPanel QComboBox:disabled {
+  color: #546478;
+  background-color: rgba(100, 130, 165, 18);
+  border: 1px solid rgba(120, 155, 190, 30);
+}
+#AgentAssistantPanel QPlainTextEdit {
+  background-color: rgba(160, 195, 235, 28);
+  color: #C8D4E6;
+  border: 1px solid rgba(140, 185, 230, 60);
+  border-radius: 10px;
+  padding: 10px;
+  font: 11pt Consolas, "Cascadia Mono", "Courier New", monospace;
+  selection-background-color: rgba(140, 200, 234, 160);
+  selection-color: #1A2235;
+}
+#AgentAssistantPanel #chatLog {
+  background-color: rgba(180, 210, 240, 30);
+  border: 1px solid rgba(140, 185, 230, 55);
+  border-radius: 10px;
+  padding: 8px;
+  font: 13px "Segoe UI", "Microsoft YaHei";
+  color: #D0DAE8;
+}
+#AgentAssistantPanel #snapshotToggleBtn {
+  background-color: transparent;
+  border: none;
+  color: #90C8E8;
+  font: bold 13px "Segoe UI", "Microsoft YaHei";
+  text-align: left;
+  padding: 2px 4px;
+}
+#AgentAssistantPanel #snapshotToggleBtn:hover {
+  color: #B0D8F0;
+}
+#AgentAssistantPanel QPushButton {
+  background-color: rgba(160, 195, 235, 45);
+  border: 1px solid rgba(140, 185, 230, 75);
+  border-radius: 6px;
+  color: #B8C8E0;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  padding: 5px 12px 6px 12px;
+  min-height: 24px;
+}
+#AgentAssistantPanel QPushButton:hover {
+  background-color: rgba(160, 195, 235, 70);
+  border: 1px solid rgba(140, 185, 230, 110);
+  color: #E0E8F4;
+}
+#AgentAssistantPanel QPushButton:pressed {
+  color: #8AA0C0;
+  background-color: rgba(140, 175, 215, 35);
+}
+#AgentAssistantPanel QPushButton:disabled {
+  color: #4A5A70;
+  background-color: rgba(120, 150, 185, 14);
+  border: 1px solid rgba(120, 155, 190, 25);
+}
+#AgentAssistantPanel #sendLLMButton {
+  color: #1A2235;
+  background-color: rgba(140, 200, 234, 210);
+  border: 1px solid rgba(140, 200, 234, 180);
+  font-weight: bold;
+}
+#AgentAssistantPanel #sendLLMButton:hover {
+  background-color: rgba(160, 215, 242, 230);
+}
+#AgentAssistantPanel #sendLLMButton:pressed {
+  color: rgba(26, 34, 53, 180);
+  background-color: rgba(120, 185, 225, 190);
+}
+#AgentAssistantPanel #sendLLMButton:disabled {
+  color: #546478;
+  background-color: rgba(120, 155, 190, 35);
+  border: 1px solid rgba(120, 155, 190, 28);
+}
+#AgentAssistantPanel #continueToChatButton {
+  color: #1A2235;
+  background-color: rgba(140, 200, 234, 210);
+  border: 1px solid rgba(140, 200, 234, 180);
+  font-weight: bold;
+  min-height: 30px;
+}
+#AgentAssistantPanel #continueToChatButton:hover {
+  background-color: rgba(160, 215, 242, 230);
+}
+#AgentAssistantPanel QCheckBox {
+  color: #B8C8E0;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  spacing: 8px;
+  min-height: 22px;
+}
+#AgentAssistantPanel QCheckBox::indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(140, 185, 230, 80);
+  background-color: rgba(160, 195, 235, 30);
+}
+#AgentAssistantPanel QCheckBox::indicator:hover {
+  background-color: rgba(160, 195, 235, 55);
+  border: 1px solid rgba(140, 185, 230, 110);
+}
+#AgentAssistantPanel QCheckBox::indicator:checked {
+  background-color: rgba(140, 200, 234, 210);
+  border: 1px solid rgba(140, 200, 234, 190);
+}
+#AgentAssistantPanel QCheckBox::indicator:checked:hover {
+  background-color: rgba(160, 215, 242, 230);
+  border: 1px solid rgba(160, 215, 242, 210);
+}
+#AgentAssistantPanel QCheckBox:disabled {
+  color: #4A5A70;
+}
+#AgentAssistantPanel QCheckBox::indicator:disabled {
+  border: 1px solid rgba(120, 155, 190, 28);
+  background-color: rgba(120, 150, 185, 14);
+}
+#AgentAssistantPanel #statusLabel {
+  font: bold 12px "Segoe UI", "Microsoft YaHei";
+  color: #90C8E8;
+  padding: 2px 4px;
+  background-color: transparent;
+}
+#AgentAssistantPanel #tokenUsageLabel {
+  font: 11px "Segoe UI", "Microsoft YaHei";
+  color: #6888A8;
+  padding: 0px 4px;
+  background-color: transparent;
+}
+#AgentAssistantPanel #stopButton {
+  color: white;
+  background-color: rgba(224, 100, 80, 200);
+  border: 1px solid rgba(200, 80, 60, 180);
+  font-weight: bold;
+}
+#AgentAssistantPanel #stopButton:hover {
+  background-color: rgba(210, 85, 65, 220);
+}
+#AgentAssistantPanel #stopButton:pressed {
+  background-color: rgba(190, 70, 50, 200);
+}
+#AgentAssistantPanel #stopButton:disabled {
+  color: #4A5A70;
+  background-color: rgba(120, 80, 70, 30);
+  border: 1px solid rgba(120, 80, 70, 20);
+}
+#AgentAssistantPanel #searchEdit {
+  border-radius: 4px;
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  padding: 3px 6px;
+  min-height: 18px;
+}
+#AgentAssistantPanel #searchNextBtn,
+#AgentAssistantPanel #searchCloseBtn {
+  padding: 2px 8px;
+  min-height: 18px;
+  font: 12px "Segoe UI", "Microsoft YaHei";
+}
+)CSS");
+}
+
+// Based on QFluentWidgets light QSS values.
+// Based on ElaWidgetTools light theme (Liniyous/ElaWidgetTools, MIT).
+// PrimaryNormal #0067C0, WindowBase #F3F3F3, BasicBase #FDFDFD, BasicBorder #E5E5E5,
+// BasicText black, BasicDetailsText #878787.
+static QString agentPanelStylesheetLight()
+{
+  return QStringLiteral(R"CSS(
+#AgentAssistantPanel {
+  background-color: #F3F3F3;
+}
+#AgentAssistantPanel QLabel {
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  color: black;
+  background-color: transparent;
+}
+#AgentAssistantPanel #helpLabel {
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  color: #878787;
+}
+#AgentAssistantPanel #chatLog {
+  background-color: rgba(255, 255, 255, 180);
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  padding: 8px;
+  font: 13px "Segoe UI", "Microsoft YaHei";
+  color: black;
+}
+#AgentAssistantPanel #snapshotToggleBtn {
+  background-color: transparent;
+  border: none;
+  color: #0067C0;
+  font: bold 13px "Segoe UI", "Microsoft YaHei";
+  text-align: left;
+  padding: 2px 4px;
+}
+#AgentAssistantPanel QGroupBox {
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 160);
+  margin-top: 16px;
+  padding: 16px 12px 12px 12px;
+}
+#AgentAssistantPanel QGroupBox::title {
+  subcontrol-origin: margin;
+  left: 14px;
+  padding: 0 8px;
+  font: bold 14px "Segoe UI", "Microsoft YaHei";
+  color: #5C5C5F;
+}
+#AgentAssistantPanel QLineEdit,
+#AgentAssistantPanel QComboBox {
+  background-color: #FDFDFD;
+  border: 1px solid #E5E5E5;
+  border-bottom: 1px solid #868686;
+  border-radius: 5px;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  padding: 5px 10px;
+  color: black;
+  min-height: 22px;
+  selection-background-color: #0067C0;
+  selection-color: white;
+}
+#AgentAssistantPanel QLineEdit:hover,
+#AgentAssistantPanel QComboBox:hover {
+  background-color: #F3F3F3;
+}
+#AgentAssistantPanel QLineEdit:focus {
+  border-bottom: 1px solid #0067C0;
+}
+#AgentAssistantPanel QLineEdit:disabled,
+#AgentAssistantPanel QComboBox:disabled {
+  color: #B6B6B6;
+  background-color: #F5F5F5;
+  border: 1px solid #E5E5E5;
+}
+#AgentAssistantPanel QPlainTextEdit {
+  background-color: rgba(255, 255, 255, 160);
+  color: black;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  padding: 10px;
+  font: 11pt Consolas, "Cascadia Mono", "Courier New", monospace;
+  selection-background-color: #0067C0;
+  selection-color: white;
+}
+#AgentAssistantPanel QPushButton {
+  background-color: rgba(204, 204, 204, 70);
+  border: 1px solid #E5E5E5;
+  border-radius: 5px;
+  color: black;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  padding: 5px 12px 6px 12px;
+  min-height: 24px;
+}
+#AgentAssistantPanel QPushButton:hover {
+  background-color: #F3F3F3;
+  border: 1px solid #DADADA;
+}
+#AgentAssistantPanel QPushButton:pressed {
+  color: #5A5A5D;
+  background-color: #F7F7F7;
+}
+#AgentAssistantPanel QPushButton:disabled {
+  color: #B6B6B6;
+  background-color: #F5F5F5;
+  border: 1px solid #E5E5E5;
+}
+#AgentAssistantPanel #sendLLMButton {
+  color: white;
+  background-color: #0067C0;
+  border: 1px solid #1975C5;
+  font-weight: bold;
+}
+#AgentAssistantPanel #sendLLMButton:hover {
+  background-color: #1975C5;
+}
+#AgentAssistantPanel #sendLLMButton:pressed {
+  color: rgba(255, 255, 255, 200);
+  background-color: #3183CA;
+  border: 1px solid #3183CA;
+}
+#AgentAssistantPanel #sendLLMButton:disabled {
+  color: #B6B6B6;
+  background-color: #F5F5F5;
+  border: 1px solid #F5F5F5;
+}
+#AgentAssistantPanel #continueToChatButton {
+  color: white;
+  background-color: #0067C0;
+  border: 1px solid #1975C5;
+  font-weight: bold;
+  min-height: 30px;
+}
+#AgentAssistantPanel #continueToChatButton:hover {
+  background-color: #1975C5;
+}
+#AgentAssistantPanel QCheckBox {
+  color: black;
+  font: 14px "Segoe UI", "Microsoft YaHei";
+  spacing: 8px;
+  min-height: 22px;
+}
+#AgentAssistantPanel QCheckBox::indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid #A0A0A0;
+  background-color: #FDFDFD;
+}
+#AgentAssistantPanel QCheckBox::indicator:hover {
+  background-color: #F3F3F3;
+}
+#AgentAssistantPanel QCheckBox::indicator:checked {
+  background-color: #0067C0;
+  border: 1px solid #0067C0;
+}
+#AgentAssistantPanel QCheckBox::indicator:checked:hover {
+  background-color: #1975C5;
+  border: 1px solid #1975C5;
+}
+#AgentAssistantPanel QCheckBox:disabled {
+  color: #B6B6B6;
+}
+#AgentAssistantPanel QCheckBox::indicator:disabled {
+  border: 1px solid #A8A8A8;
+  background-color: #F5F5F5;
+}
+#AgentAssistantPanel #statusLabel {
+  font: bold 12px "Segoe UI", "Microsoft YaHei";
+  color: #0067C0;
+  padding: 2px 4px;
+  background-color: transparent;
+}
+#AgentAssistantPanel #tokenUsageLabel {
+  font: 11px "Segoe UI", "Microsoft YaHei";
+  color: #878787;
+  padding: 0px 4px;
+  background-color: transparent;
+}
+#AgentAssistantPanel #stopButton {
+  color: white;
+  background-color: #D04030;
+  border: 1px solid #C03828;
+  font-weight: bold;
+}
+#AgentAssistantPanel #stopButton:hover {
+  background-color: #C03828;
+}
+#AgentAssistantPanel #stopButton:pressed {
+  background-color: #B03020;
+}
+#AgentAssistantPanel #stopButton:disabled {
+  color: #B6B6B6;
+  background-color: #F0E0E0;
+  border: 1px solid #E5D5D5;
+}
+#AgentAssistantPanel #searchEdit {
+  border-radius: 4px;
+  font: 12px "Segoe UI", "Microsoft YaHei";
+  padding: 3px 6px;
+  min-height: 18px;
+}
+#AgentAssistantPanel #searchNextBtn,
+#AgentAssistantPanel #searchCloseBtn {
+  padding: 2px 8px;
+  min-height: 18px;
+  font: 12px "Segoe UI", "Microsoft YaHei";
+}
+)CSS");
+}
+
+static bool questionContainsAny(const QString &haystack, const std::initializer_list<QString> &subs)
 {
   const QString h = haystack.toLower();
-  for(const char *s : subs)
+  for(const QString &s : subs)
   {
-    if(!s || !s[0])
+    if(s.isEmpty())
       continue;
-    if(h.contains(QString::fromUtf8(s), Qt::CaseInsensitive))
+    if(h.contains(s, Qt::CaseInsensitive))
       return true;
   }
   return false;
+}
+
+// MSVC: keep Chinese out of raw string literals (encoding); UTF-8 bytes are ASCII-safe here.
+static QString utf8Zh(const char *utf8Bytes)
+{
+  return QString::fromUtf8(utf8Bytes);
 }
 
 static uint32_t selectAgentDataSkills(const QString &question)
@@ -95,47 +843,71 @@ static uint32_t selectAgentDataSkills(const QString &question)
 
   uint32_t m = 0;
 
-  if(questionContainsAny(q, {"blend", "mrt", "alpha", "premulti", "混合", "混色"}))
+  if(questionContainsAny(q, {lit("blend"), lit("mrt"), lit("alpha"), lit("premulti"),
+                             utf8Zh("\xe6\xb7\xb7\xe5\x90\x88"), utf8Zh("\xe6\xb7\xb7\xe8\x89\xb2")}))
     m |= AgentSkill_BlendStencil | AgentSkill_OMTargets;
 
-  if(questionContainsAny(q, {"depth", "stencil", "z-test", "ztest", "深度", "模板"}))
+  if(questionContainsAny(q, {lit("depth"), lit("stencil"), lit("z-test"), lit("ztest"),
+                             utf8Zh("\xe6\xb7\xb1\xe5\xba\xa6"), utf8Zh("\xe6\xa8\xa1\xe6\x9d\xbf")}))
     m |= AgentSkill_BlendStencil | AgentSkill_OMTargets;
 
-  if(questionContainsAny(q, {"texture", "srv", "uav", "sample", "sampler", "bind", "descriptor",
-                             "binding", "resource", "贴图", "纹理", "采样", "描述符", "绑定", "图像"}))
+  if(questionContainsAny(
+         q, {lit("texture"), lit("srv"), lit("uav"), lit("sample"), lit("sampler"), lit("bind"),
+             lit("descriptor"), lit("binding"), lit("resource"), utf8Zh("\xe8\xb4\xbf\xe5\x9b\xbe"),
+             utf8Zh("\xe7\xba\xb9\xe7\x90\x86"), utf8Zh("\xe9\x87\x87\xe6\xa0\xb7"),
+             utf8Zh("\xe6\x8f\x8f\xe8\xbf\xb0\xe7\xac\xa6"), utf8Zh("\xe7\xbb\x91\xe5\xae\x9a"),
+             utf8Zh("\xe5\x9b\xbe\xe5\x83\x8f")}))
     m |= AgentSkill_Descriptors | AgentSkill_ResourceBrief | AgentSkill_OMTargets | AgentSkill_Shaders |
          AgentSkill_AssetCatalog;
 
-  if(questionContainsAny(q, {"shader", "disasm", "disassemble", "spirv", "hlsl", "dxil", "assembly",
-                             "着色器", "反编译", "汇编"}))
+  if(questionContainsAny(q, {lit("shader"), lit("disasm"), lit("disassemble"), lit("spirv"), lit("hlsl"),
+                             lit("dxil"), lit("assembly"), utf8Zh("\xe7\x9d\x80\xe8\x89\xb2\xe5\x99\xa8"),
+                             utf8Zh("\xe5\x8f\x8d\xe7\xbc\x96\xe8\xaf\x91"), utf8Zh("\xe6\xb1\x87\xe7\xbc\x96")}))
     m |= AgentSkill_Shaders | AgentSkill_Descriptors;
 
-  if(questionContainsAny(q, {"model", "mesh", "网格", "模型"}))
+  if(questionContainsAny(q, {lit("model"), lit("mesh"), utf8Zh("\xe7\xbd\x91\xe6\xa0\xbc"),
+                             utf8Zh("\xe6\xa8\xa1\xe5\x9e\x8b")}))
     m |= AgentSkill_AssetCatalog | AgentSkill_ViewGeom | AgentSkill_PipelineSummary;
 
-  if(questionContainsAny(q, {"catalog", "清单", "列表", "所有贴图", "所有纹理", "所有资源", "资源列表",
-                             "capture-wide", "全局资源"}))
+  if(questionContainsAny(
+         q,
+         {lit("catalog"), utf8Zh("\xe6\xb8\x85\xe5\x8d\x95"), utf8Zh("\xe5\x88\x97\xe8\xa1\xa8"),
+          utf8Zh("\xe6\x89\x80\xe6\x9c\x89\xe8\xb4\xbf\xe5\x9b\xbe"),
+          utf8Zh("\xe6\x89\x80\xe6\x9c\x89\xe7\xba\xb9\xe7\x90\x86"),
+          utf8Zh("\xe6\x89\x80\xe6\x9c\x89\xe8\xb5\x84\xe6\xba\x90"),
+          utf8Zh("\xe8\xb5\x84\xe6\xba\x90\xe5\x88\x97\xe8\xa1\xa8"), lit("capture-wide"),
+          utf8Zh("\xe5\x85\xa8\xe5\xb1\x80\xe8\xb5\x84\xe6\xba\x90")}))
     m |= AgentSkill_AssetCatalog;
 
-  if(questionContainsAny(q, {"vertex", "index", "indices", "vb", "ib", "layout", "input", "顶点", "索引",
-                             "几何", "图元", "topology"}))
+  if(questionContainsAny(
+         q, {lit("vertex"), lit("index"), lit("indices"), lit("vb"), lit("ib"), lit("layout"), lit("input"),
+             utf8Zh("\xe9\xa1\xb6\xe7\x82\xb9"), utf8Zh("\xe7\xb4\xa2\xe5\xbc\x95"),
+             utf8Zh("\xe5\x87\xa0\xe4\xbd\x95"), utf8Zh("\xe5\x9b\xbe\xe5\x85\x83"), lit("topology")}))
     m |= AgentSkill_ViewGeom | AgentSkill_PipelineSummary;
 
-  if(questionContainsAny(q, {"marker", "region", "pass", "eid", "event", "action", "标记", "区域", "事件",
-                             "范围"}))
+  if(questionContainsAny(
+         q, {lit("marker"), lit("region"), lit("pass"), lit("eid"), lit("event"), lit("action"),
+             utf8Zh("\xe6\xa0\x87\xe8\xae\xb0"), utf8Zh("\xe5\x8c\xba\xe5\x9f\x9f"),
+             utf8Zh("\xe4\xba\x8b\xe4\xbb\xb6"), utf8Zh("\xe8\x8c\x83\xe5\x9b\xb4")}))
     m |= AgentSkill_Action | AgentSkill_DescriptorAccess;
 
-  if(questionContainsAny(q, {"dispatch", "compute", "threadgroup", "workgroup", "计算", "调度"}))
+  if(questionContainsAny(q, {lit("dispatch"), lit("compute"), lit("threadgroup"), lit("workgroup"),
+                             utf8Zh("\xe8\xae\xa1\xe7\xae\x97"), utf8Zh("\xe8\xb0\x83\xe5\xba\xa6")}))
     m |= AgentSkill_Action | AgentSkill_PipelineSummary | AgentSkill_Descriptors | AgentSkill_Shaders;
 
-  if(questionContainsAny(q, {"printf", "print", "message", "调试输出"}))
+  if(questionContainsAny(q, {lit("printf"), lit("print"), lit("message"),
+                             utf8Zh("\xe8\xb0\x83\xe8\xaf\x95\xe8\xbe\x93\xe5\x87\xba")}))
     m |= AgentSkill_ShaderMessages;
 
-  if(questionContainsAny(q, {"viewport", "scissor", "raster", "视口", "裁剪", "光栅"}))
+  if(questionContainsAny(q, {lit("viewport"), lit("scissor"), lit("raster"),
+                             utf8Zh("\xe8\xa7\x86\xe5\x8f\xa3"), utf8Zh("\xe8\xa3\x81\xe5\x89\xaa"),
+                             utf8Zh("\xe5\x85\x89\xe6\xa0\x85")}))
     m |= AgentSkill_ViewGeom | AgentSkill_PipelineSummary;
 
-  if(questionContainsAny(q, {"output", "rtv", "render target", "fbo", "framebuffer", "颜色输出", "渲染目标",
-                             "attachment"}))
+  if(questionContainsAny(
+         q, {lit("output"), lit("rtv"), lit("render target"), lit("fbo"), lit("framebuffer"),
+             utf8Zh("\xe9\xa2\x9c\xe8\x89\xb2\xe8\xbe\x93\xe5\x87\xba"),
+             utf8Zh("\xe6\xb8\xb2\xe6\x9f\x93\xe7\x9b\xae\xe6\xa0\x87"), lit("attachment")}))
     m |= AgentSkill_OMTargets | AgentSkill_BlendStencil;
 
   if(m == 0)
@@ -179,6 +951,8 @@ static QString agentDataSkillMaskSummary(uint32_t mask)
 }
 
 static QString rdcToQString(const rdcstr &s);
+static QString resourceFormatToQString(const ResourceFormat &f);
+static QString textureSwizzle4ToQString(const TextureSwizzle4 &sw);
 
 static uint32_t agentMinU32(uint32_t a, uint32_t b)
 {
@@ -209,7 +983,7 @@ static void appendCaptureAssetCatalog(QTextStream &ts, ICaptureContext &ctx)
     ts << lit("  [") << i << lit("] ") << rdcToQString(ToStr(t.resourceId)) << lit(" \"")
        << rdcToQString(ctx.GetResourceName(t.resourceId)) << lit("\" ") << t.width << lit("x") << t.height
        << lit("x") << t.depth << lit(" dim=") << t.dimension << lit(" type=")
-       << rdcToQString(ToStr(t.type)) << lit(" fmt=") << rdcToQString(ToStr(t.format)) << lit(" mips=")
+       << rdcToQString(ToStr(t.type)) << lit(" fmt=") << resourceFormatToQString(t.format) << lit(" mips=")
        << t.mips << lit(" arraysize=") << t.arraysize << lit(" cubemap=")
        << (t.cubemap ? lit("yes") : lit("no")) << lit(" msSamp=") << t.msSamp << lit(" approxBytes=")
        << (qulonglong)t.byteSize << lit(" category=") << rdcToQString(ToStr(t.creationFlags)) << lit("\n");
@@ -252,6 +1026,18 @@ static QString rdcToQString(const rdcstr &s)
   if(s.empty())
     return QString();
   return QString::fromUtf8(s.data(), (int)s.size());
+}
+
+// ResourceFormat / TextureSwizzle4 have no DoStringise in the UI link set; use API-friendly forms.
+static QString resourceFormatToQString(const ResourceFormat &f)
+{
+  return rdcToQString(f.Name());
+}
+
+static QString textureSwizzle4ToQString(const TextureSwizzle4 &sw)
+{
+  return rdcToQString(ToStr(sw.red)) + rdcToQString(ToStr(sw.green)) + rdcToQString(ToStr(sw.blue)) +
+         rdcToQString(ToStr(sw.alpha));
 }
 
 static rdcstr qstrToRdc(const QString &s)
@@ -369,10 +1155,10 @@ static void appendDescriptorDetailLine(QTextStream &ts, ICaptureContext &ctx, co
   }
 
   ts << lit("           Descriptor: type=") << rdcToQString(ToStr(d.type)) << lit(" viewFmt=")
-     << rdcToQString(ToStr(d.format)) << lit(" texType=") << rdcToQString(ToStr(d.textureType))
+     << resourceFormatToQString(d.format) << lit(" texType=") << rdcToQString(ToStr(d.textureType))
      << lit(" view=") << rdcToQString(ToStr(d.view)) << lit(" mips[") << (uint32_t)d.firstMip
      << lit("+") << (uint32_t)d.numMips << lit("] slices[") << d.firstSlice << lit("+")
-     << d.numSlices << lit("] swizzle=") << rdcToQString(ToStr(d.swizzle)) << lit(" minLodClamp=")
+     << d.numSlices << lit("] swizzle=") << textureSwizzle4ToQString(d.swizzle) << lit(" minLodClamp=")
      << d.minLODClamp << lit(" bufOff=") << d.byteOffset << lit(" bufSize=") << d.byteSize
      << lit(" structCount=") << d.bufferStructCount << lit(" elemBytes=") << d.elementByteSize
      << lit("\n");
@@ -383,7 +1169,7 @@ static void appendDescriptorDetailLine(QTextStream &ts, ICaptureContext &ctx, co
     const TextureDescription *tex = ctx.GetTexture(d.resource);
     if(tex)
     {
-      ts << lit("  TEXTURE storageFmt=") << rdcToQString(ToStr(tex->format)) << lit(" size=")
+      ts << lit("  TEXTURE storageFmt=") << resourceFormatToQString(tex->format) << lit(" size=")
          << tex->width << lit("x") << tex->height << lit("x") << tex->depth << lit(" mips=")
          << tex->mips << lit(" arraysize=") << tex->arraysize << lit(" dim=") << tex->dimension
          << lit(" type=") << rdcToQString(ToStr(tex->type));
@@ -498,7 +1284,39 @@ static QString systemPrompt()
       "texture/buffer/resource registry (dimensions, formats, categories; not raw texels or buffer "
       "bytes), plus optional multi-target shader disassembly appended separately when enabled.\n"
       "Explain clearly, cite which draw/dispatch or shader stage you refer to, and avoid guessing "
-      "when information is missing.");
+      "when information is missing.\n"
+      "When referencing specific events, always write them as 'EID 1234' (the word EID followed by "
+      "the numeric event ID). These become clickable links so the user can navigate directly "
+      "to that event in the Event Browser.\n\n"
+      "=== AVAILABLE TOOLS ===\n"
+      "You have three tools. Write the command on its own line. The system executes it automatically "
+      "and sends the result back. You may chain up to 5 tool calls per conversation turn.\n\n"
+      "1) [LIST_EVENTS]  -- Returns the full frame event tree (all markers, draw calls, dispatches, "
+      "clears, copies, presents) in a hierarchical text format. Use this FIRST when the user asks "
+      "to reverse-engineer or summarize the entire rendering pipeline. The tree shows marker names, "
+      "EIDs, action types, draw parameters, and render target IDs.\n\n"
+      "2) [SCAN_PASS nnnn]  -- Scans a marker/pass at the given EID. Collects all leaf draw/dispatch/"
+      "clear/copy events under that marker, samples up to 8 of them, and returns a condensed pipeline "
+      "snapshot for each sampled event. Use this to understand what a render pass does (its shaders, "
+      "render targets, blend state, etc.) without fetching every single draw.\n\n"
+      "3) [FETCH_EID nnnn]  -- Fetches the full pipeline snapshot for a single event. Use this when "
+      "you need detailed state for one specific draw call (vertex/index buffers, full descriptor "
+      "tables, shader disassembly if enabled, etc.).\n\n"
+      "=== REVERSE-ENGINEERING THE RENDERING PIPELINE ===\n"
+      "When the user asks you to reverse-engineer or analyze the full rendering pipeline, follow "
+      "this workflow:\n"
+      "  Step 1: Call [LIST_EVENTS] to get the full frame event tree.\n"
+      "  Step 2: Identify the top-level render passes from the marker hierarchy.\n"
+      "  Step 3: Call [SCAN_PASS nnnn] on each major pass to sample its draws and understand "
+      "what each pass renders (GBuffer, shadows, lighting, post-processing, UI, etc.).\n"
+      "  Step 4: If needed, call [FETCH_EID nnnn] on specific draws for deeper detail.\n"
+      "  Step 5: Synthesize everything into a clear, ordered pipeline summary:\n"
+      "    - What each pass does (purpose, render targets, shaders)\n"
+      "    - The rendering order (what happens first, second, etc.)\n"
+      "    - How passes connect (which pass's output becomes another's input)\n"
+      "    - Final composition and present\n"
+      "Do NOT ask the user to navigate manually. Do NOT stop after listing events -- always analyze "
+      "the passes automatically and provide a complete pipeline breakdown.\n");
 }
 
 static QByteArray makeOpenAIChatPayload(const QString &model, const QString &userBody)
@@ -614,6 +1432,35 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
     : QFrame(parent), ui(new Ui::AgentAssistantPanel), m_Ctx(ctx)
 {
   ui->setupUi(this);
+  m_helpTextFull = ui->helpLabel->text();
+  setFrameShape(QFrame::NoFrame);
+  setAutoFillBackground(false);
+
+  {
+    QString appDir = QCoreApplication::applicationDirPath();
+    QStringList tryPaths;
+    tryPaths << appDir + lit("/agent_bg.jpg");
+    tryPaths << lit("E:/ProjectGithub/renderdoc/qrenderdoc/Resources/agent_bg.jpg");
+    tryPaths << appDir + lit("/../qrenderdoc/Resources/agent_bg.jpg");
+    tryPaths << lit(":/agent_bg.jpg");
+    for(const QString &path : tryPaths)
+    {
+      if(QFileInfo(path).exists() || path.startsWith(lit(":/")))
+      {
+        m_bgPixmap = QPixmap(path);
+        if(!m_bgPixmap.isNull())
+        {
+          qDebug("AgentAssistant: loaded background from: %s (%dx%d)",
+                 qPrintable(path), m_bgPixmap.width(), m_bgPixmap.height());
+          break;
+        }
+      }
+    }
+    if(m_bgPixmap.isNull())
+      qWarning("AgentAssistant: background image not found in any search path");
+  }
+
+  applyReadableFonts();
 
   m_net = new QNetworkAccessManager(this);
 
@@ -638,6 +1485,22 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
                    &AgentAssistantPanel::copyContextOnly);
   QObject::connect(ui->refreshButton, &QPushButton::clicked, this, &AgentAssistantPanel::refreshSnapshot);
   QObject::connect(ui->sendLLMButton, &QPushButton::clicked, this, &AgentAssistantPanel::sendToLLM);
+  QObject::connect(ui->continueToChatButton, &QPushButton::clicked, this,
+                   &AgentAssistantPanel::onContinueToChat);
+
+  QObject::connect(ui->apiTokenEdit, &QLineEdit::editingFinished, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
+  QObject::connect(ui->apiTokenEdit, &QLineEdit::returnPressed, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
+  QObject::connect(ui->azureEndpointEdit, &QLineEdit::editingFinished, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
+  QObject::connect(ui->azureDeploymentEdit, &QLineEdit::editingFinished, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
+  QObject::connect(ui->compatibleBaseUrlEdit, &QLineEdit::editingFinished, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
+
+  QObject::connect(ui->includeDisasmCheck, &QCheckBox::stateChanged, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
 
   if(ui->questionEdit)
   {
@@ -645,10 +1508,76 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
                      &AgentAssistantPanel::rebuildSnapshot);
   }
 
+  QObject::connect(ui->chatLog, &QTextBrowser::anchorClicked, this,
+                   &AgentAssistantPanel::onChatLinkClicked);
+  QObject::connect(ui->snapshotToggleBtn, &QPushButton::toggled, this,
+                   &AgentAssistantPanel::onSnapshotToggled);
+  QObject::connect(ui->stopButton, &QPushButton::clicked, this, &AgentAssistantPanel::stopLLM);
+
+  QObject::connect(ui->searchNextBtn, &QPushButton::clicked, this, &AgentAssistantPanel::onSearchNext);
+  QObject::connect(ui->searchCloseBtn, &QPushButton::clicked, this,
+                   &AgentAssistantPanel::onSearchClose);
+  QObject::connect(ui->searchEdit, &QLineEdit::returnPressed, this,
+                   &AgentAssistantPanel::onSearchNext);
+
+  m_searchShortcut = new QShortcut(QKeySequence(lit("Ctrl+F")), this);
+  QObject::connect(m_searchShortcut, &QShortcut::activated, this,
+                   &AgentAssistantPanel::onSearchToggle);
+
+  ui->snapshotEdit->setMaximumHeight(0);
+  ui->snapshotEdit->setVisible(false);
+
   m_Ctx.AddCaptureViewer(this);
 
   rebuildSnapshot();
+  updateSetupVsChatLayout();
+  applyPanelChrome();
 }
+
+void AgentAssistantPanel::showEvent(QShowEvent *e)
+{
+  applyPanelChrome();
+  QFrame::showEvent(e);
+}
+
+void AgentAssistantPanel::paintEvent(QPaintEvent *)
+{
+  QPainter p(this);
+  p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+  const QString styleId = rdcToQString(m_Ctx.Config().UIStyle).trimmed();
+  bool isAnime = (styleId.compare(lit("RDAnimeGlass"), Qt::CaseInsensitive) == 0);
+
+  if(!isAnime)
+  {
+    p.fillRect(rect(), palette().window());
+    return;
+  }
+
+  if(!m_bgPixmap.isNull())
+  {
+    if(m_bgScaledSize != size())
+    {
+      m_bgScaled =
+          m_bgPixmap.scaled(size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+      m_bgScaledSize = size();
+    }
+    int x = (width() - m_bgScaled.width()) / 2;
+    int y = (height() - m_bgScaled.height()) / 2;
+    p.drawPixmap(x, y, m_bgScaled);
+    p.fillRect(rect(), QColor(0, 0, 0, 30));
+  }
+  else
+  {
+    QLinearGradient grad(0, 0, width(), height());
+    grad.setColorAt(0.0, QColor(0xED, 0xF2, 0xFA));
+    grad.setColorAt(0.5, QColor(0xDB, 0xE8, 0xF5));
+    grad.setColorAt(1.0, QColor(0xC8, 0xDE, 0xF0));
+    p.fillRect(rect(), grad);
+  }
+}
+
+
 
 AgentAssistantPanel::~AgentAssistantPanel()
 {
@@ -679,9 +1608,269 @@ void AgentAssistantPanel::OnEventChanged(uint32_t eventId)
   rebuildSnapshot();
 }
 
+static void countLeafActions(const rdcarray<ActionDescription> &actions, int &draws,
+                             int &dispatches, int &clears, int &copies)
+{
+  for(const ActionDescription &a : actions)
+  {
+    uint32_t f = (uint32_t)a.flags;
+    if(f & (uint32_t)ActionFlags::Drawcall)
+      draws++;
+    if(f & ((uint32_t)ActionFlags::Dispatch | (uint32_t)ActionFlags::MeshDispatch |
+            (uint32_t)ActionFlags::DispatchRay))
+      dispatches++;
+    if(f & (uint32_t)ActionFlags::Clear)
+      clears++;
+    if(f & ((uint32_t)ActionFlags::Copy | (uint32_t)ActionFlags::Resolve))
+      copies++;
+    if(!a.children.empty())
+      countLeafActions(a.children, draws, dispatches, clears, copies);
+  }
+}
+
+static void walkEventTree(const rdcarray<ActionDescription> &actions, int depth, QString &out,
+                          int maxDepth)
+{
+  if(depth > maxDepth)
+    return;
+  QString indent(depth * 2, QLatin1Char(' '));
+  for(const ActionDescription &a : actions)
+  {
+    uint32_t flags = (uint32_t)a.flags;
+    bool isMarker = (flags & (uint32_t)ActionFlags::PushMarker) != 0;
+    bool isDraw = (flags & (uint32_t)ActionFlags::Drawcall) != 0;
+    bool isDispatch = (flags & ((uint32_t)ActionFlags::Dispatch | (uint32_t)ActionFlags::MeshDispatch |
+                                (uint32_t)ActionFlags::DispatchRay)) != 0;
+    bool isClear = (flags & (uint32_t)ActionFlags::Clear) != 0;
+    bool isCopy = (flags & ((uint32_t)ActionFlags::Copy | (uint32_t)ActionFlags::Resolve)) != 0;
+    bool isPresent = (flags & (uint32_t)ActionFlags::Present) != 0;
+
+    QString name = QString::fromUtf8(a.customName.c_str());
+    if(name.isEmpty())
+      name = QStringLiteral("event");
+
+    QString tag;
+    if(isDraw)
+    {
+      tag = QStringLiteral(" [Draw %1 idx, %2 inst]").arg(a.numIndices).arg(a.numInstances);
+      QString outs;
+      for(int i = 0; i < 8; i++)
+      {
+        if(a.outputs[i] != ResourceId())
+        {
+          if(!outs.isEmpty())
+            outs += lit(",");
+          outs += rdcToQString(ToStr(a.outputs[i]));
+        }
+      }
+      if(!outs.isEmpty())
+        tag += QStringLiteral(" RT:{%1}").arg(outs);
+      if(a.depthOut != ResourceId())
+        tag += QStringLiteral(" DS:%1").arg(rdcToQString(ToStr(a.depthOut)));
+    }
+    else if(isDispatch)
+      tag = QStringLiteral(" [Dispatch %1x%2x%3]")
+                .arg(a.dispatchDimension[0])
+                .arg(a.dispatchDimension[1])
+                .arg(a.dispatchDimension[2]);
+    else if(isClear)
+      tag = lit(" [Clear]");
+    else if(isCopy)
+      tag = lit(" [Copy/Resolve]");
+    else if(isPresent)
+      tag = lit(" [Present]");
+    else if(isMarker && !a.children.empty())
+    {
+      int dc = 0, dp = 0, cl = 0, cp = 0;
+      countLeafActions(a.children, dc, dp, cl, cp);
+      QStringList parts;
+      if(dc > 0) parts << QStringLiteral("%1 draws").arg(dc);
+      if(dp > 0) parts << QStringLiteral("%1 dispatches").arg(dp);
+      if(cl > 0) parts << QStringLiteral("%1 clears").arg(cl);
+      if(cp > 0) parts << QStringLiteral("%1 copies").arg(cp);
+      tag = QStringLiteral(" {%1}").arg(parts.join(lit(", ")));
+    }
+
+    out += QStringLiteral("%1EID %2: %3%4\n").arg(indent).arg(a.eventId).arg(name).arg(tag);
+
+    if(!a.children.empty())
+      walkEventTree(a.children, depth + 1, out, maxDepth);
+  }
+}
+
+QString AgentAssistantPanel::formatEventTree()
+{
+  if(!m_Ctx.IsCaptureLoaded())
+    return QString();
+
+  const rdcarray<ActionDescription> &roots = m_Ctx.CurRootActions();
+  if(roots.empty())
+    return lit("(No actions in capture)");
+
+  int totalDraws = 0, totalDisp = 0, totalClear = 0, totalCopy = 0;
+  countLeafActions(roots, totalDraws, totalDisp, totalClear, totalCopy);
+  int total = totalDraws + totalDisp + totalClear + totalCopy;
+
+  int maxDepth = 4;
+  if(total < 200)
+    maxDepth = 6;
+  else if(total > 2000)
+    maxDepth = 3;
+
+  QString out = QStringLiteral("=== Frame event tree (%1 draws, %2 dispatches, %3 clears, "
+                               "%4 copies) ===\n")
+                    .arg(totalDraws)
+                    .arg(totalDisp)
+                    .arg(totalClear)
+                    .arg(totalCopy);
+  walkEventTree(roots, 0, out, maxDepth);
+
+  const int kTreeLimit = 80000;
+  if(out.size() > kTreeLimit)
+  {
+    out.truncate(kTreeLimit);
+    out += lit("\n... [event tree truncated, use [SCAN_PASS nnnn] on specific markers]\n");
+  }
+
+  return out;
+}
+
 void AgentAssistantPanel::rebuildSnapshot()
 {
   ui->snapshotEdit->setPlainText(formatPipelineSnapshot());
+}
+
+QString AgentAssistantPanel::snapshotForEID(uint32_t eid)
+{
+  if(!m_Ctx.IsCaptureLoaded())
+    return QString();
+
+  uint32_t savedSel = m_Ctx.CurSelectedEvent();
+  uint32_t savedCur = m_Ctx.CurEvent();
+
+  m_Ctx.SetEventID({this}, eid, eid, true);
+
+  m_Ctx.Replay().BlockInvoke([](IReplayController *) {});
+
+  QString snap = formatPipelineSnapshot();
+
+  QString shaderBlock;
+  if(ui->includeDisasmCheck->isChecked())
+  {
+    rdcstr disasm;
+    m_Ctx.Replay().BlockInvoke(
+        [&](IReplayController *r) { disasm = collectShaderDisassembly(m_Ctx, r); });
+    shaderBlock = rdcToQString(disasm);
+  }
+
+  m_Ctx.SetEventID({this}, savedSel, savedCur, true);
+  m_Ctx.Replay().BlockInvoke([](IReplayController *) {});
+
+  if(!shaderBlock.isEmpty())
+    snap += lit("\n") + shaderBlock;
+
+  return snap;
+}
+
+static const ActionDescription *findActionByEID(const rdcarray<ActionDescription> &actions,
+                                                uint32_t eid)
+{
+  for(const ActionDescription &a : actions)
+  {
+    if(a.eventId == eid)
+      return &a;
+    if(!a.children.empty())
+    {
+      const ActionDescription *found = findActionByEID(a.children, eid);
+      if(found)
+        return found;
+    }
+  }
+  return NULL;
+}
+
+static void collectLeafDraws(const ActionDescription &marker, QVector<uint32_t> &draws)
+{
+  for(const ActionDescription &c : marker.children)
+  {
+    uint32_t f = (uint32_t)c.flags;
+    bool isDraw = (f & (uint32_t)ActionFlags::Drawcall) != 0;
+    bool isDispatch = (f & ((uint32_t)ActionFlags::Dispatch | (uint32_t)ActionFlags::MeshDispatch |
+                            (uint32_t)ActionFlags::DispatchRay)) != 0;
+    bool isClear = (f & (uint32_t)ActionFlags::Clear) != 0;
+    bool isCopy = (f & ((uint32_t)ActionFlags::Copy | (uint32_t)ActionFlags::Resolve)) != 0;
+
+    if(isDraw || isDispatch || isClear || isCopy)
+      draws.push_back(c.eventId);
+    if(!c.children.empty())
+      collectLeafDraws(c, draws);
+  }
+}
+
+QString AgentAssistantPanel::scanPassSummary(uint32_t markerEID)
+{
+  if(!m_Ctx.IsCaptureLoaded())
+    return QString();
+
+  const rdcarray<ActionDescription> &roots = m_Ctx.CurRootActions();
+  const ActionDescription *marker = findActionByEID(roots, markerEID);
+  if(!marker)
+    return QStringLiteral("EID %1 not found in event tree.").arg(markerEID);
+
+  QVector<uint32_t> draws;
+  collectLeafDraws(*marker, draws);
+  if(draws.isEmpty())
+    return QStringLiteral("No draw/dispatch/clear/copy actions found under EID %1 (%2).")
+        .arg(markerEID)
+        .arg(QString::fromUtf8(marker->customName.c_str()));
+
+  const int kMaxSamples = 8;
+  QVector<uint32_t> sampled;
+  if(draws.size() <= kMaxSamples)
+  {
+    sampled = draws;
+  }
+  else
+  {
+    sampled.push_back(draws.first());
+    for(int i = 1; i < kMaxSamples - 1; i++)
+    {
+      int idx = (int)((double)i / (kMaxSamples - 1) * (draws.size() - 1));
+      sampled.push_back(draws[idx]);
+    }
+    sampled.push_back(draws.last());
+  }
+
+  QString out = QStringLiteral("=== Pass scan: EID %1 (%2) === %3 total actions, sampling %4\n\n")
+                    .arg(markerEID)
+                    .arg(QString::fromUtf8(marker->customName.c_str()))
+                    .arg(draws.size())
+                    .arg(sampled.size());
+
+  uint32_t savedSel = m_Ctx.CurSelectedEvent();
+  uint32_t savedCur = m_Ctx.CurEvent();
+
+  for(uint32_t eid : sampled)
+  {
+    m_Ctx.SetEventID({this}, eid, eid, true);
+    m_Ctx.Replay().BlockInvoke([](IReplayController *) {});
+
+    QString snap = formatPipelineSnapshot();
+
+    const int kSnapLimit = 4000;
+    if(snap.size() > kSnapLimit)
+    {
+      snap.truncate(kSnapLimit);
+      snap += lit("\n... [truncated]\n");
+    }
+
+    out += QStringLiteral("--- EID %1 ---\n%2\n\n").arg(eid).arg(snap);
+  }
+
+  m_Ctx.SetEventID({this}, savedSel, savedCur, true);
+  m_Ctx.Replay().BlockInvoke([](IReplayController *) {});
+
+  return out;
 }
 
 QString AgentAssistantPanel::formatPipelineSnapshot()
@@ -704,19 +1893,18 @@ QString AgentAssistantPanel::formatPipelineSnapshot()
      << lit("\n");
   if(skills != AgentSkill_All)
   {
-    ts << lit(
-        "Tip: Mention blend, texture/binding/model/mesh, shader/disasm, vertex/index, marker/eid, "
-        "depth/stencil, dispatch, printf, attachment, or catalog/列表 for capture-wide textures/buffers; "
-        "clear the question for a full snapshot.\n");
+    ts << lit("Tip: Mention blend, texture/binding/model/mesh, shader/disasm, vertex/index, marker/eid, "
+              "depth/stencil, dispatch, printf, attachment, or catalog/list keywords for capture-wide "
+              "textures/buffers; clear the question for a full snapshot.\n");
   }
   if((skills & AgentSkill_Shaders) &&
      questionContainsAny(questionForSkills,
-                         {"disasm", "disassemble", "assembly", "反编译", "汇编", "dxil", "spirv"}) &&
+                         {lit("disasm"), lit("disassemble"), lit("assembly"), utf8Zh("\xe5\x8f\x8d\xe7\xbc\x96\xe8\xaf\x91"),
+                          utf8Zh("\xe6\xb1\x87\xe7\xbc\x96"), lit("dxil"), lit("spirv")}) &&
      ui->includeDisasmCheck && !ui->includeDisasmCheck->isChecked())
   {
-    ts << lit(
-        "[Tip: Enable \"Include shader disassembly\" to attach DisassembleShader output when sending to "
-        "the LLM.]\n");
+    ts << lit("[Tip: Enable \"Include shader disassembly\" to attach DisassembleShader output when sending "
+              "to the LLM.]\n");
   }
   ts << lit("\n");
 
@@ -878,7 +2066,7 @@ QString AgentAssistantPanel::formatPipelineSnapshot()
           ts << lit("  [") << i << lit("] vbIndex=") << va.vertexBuffer << lit(" offset=") << va.byteOffset
              << lit(" perInstance=") << (va.perInstance ? lit("yes") : lit("no"))
              << lit(" instanceRate=") << va.instanceRate << lit(" fmt=")
-             << rdcToQString(ToStr(va.format)) << lit(" name=\"") << rdcToQString(va.name) << lit("\"\n");
+             << resourceFormatToQString(va.format) << lit(" name=\"") << rdcToQString(va.name) << lit("\"\n");
         }
       }
       ts << lit("\n");
@@ -911,12 +2099,12 @@ QString AgentAssistantPanel::formatPipelineSnapshot()
         ts << lit("  [") << (uint32_t)i << lit("] ") << rdcToQString(ToStr(outs[i].resource)) << lit(" \"")
            << rdcToQString(ctx.GetResourceName(outs[i].resource)) << lit("\" descType=")
            << rdcToQString(ToStr(outs[i].type)) << lit(" viewFmt=")
-           << rdcToQString(ToStr(outs[i].format)) << lit(" texType=")
+           << resourceFormatToQString(outs[i].format) << lit(" texType=")
            << rdcToQString(ToStr(outs[i].textureType)) << lit(" view=")
            << rdcToQString(ToStr(outs[i].view)) << lit(" mips[") << (uint32_t)outs[i].firstMip
            << lit("+") << (uint32_t)outs[i].numMips << lit("] slices[") << outs[i].firstSlice
            << lit("+") << outs[i].numSlices << lit("] swizzle=")
-           << rdcToQString(ToStr(outs[i].swizzle)) << lit("\n");
+           << textureSwizzle4ToQString(outs[i].swizzle) << lit("\n");
       }
       ts << lit("Depth-stencil target\n");
       {
@@ -925,7 +2113,7 @@ QString AgentAssistantPanel::formatPipelineSnapshot()
         {
           ts << lit("  ") << rdcToQString(ToStr(ds.resource)) << lit(" \"")
              << rdcToQString(ctx.GetResourceName(ds.resource)) << lit("\" descType=")
-             << rdcToQString(ToStr(ds.type)) << lit(" viewFmt=") << rdcToQString(ToStr(ds.format))
+             << rdcToQString(ToStr(ds.type)) << lit(" viewFmt=") << resourceFormatToQString(ds.format)
              << lit(" mips[") << (uint32_t)ds.firstMip << lit("+") << (uint32_t)ds.numMips
              << lit("] slices[") << ds.firstSlice << lit("+") << ds.numSlices << lit("]\n");
         }
@@ -1104,7 +2292,7 @@ QString AgentAssistantPanel::formatPipelineSnapshot()
                << rdcToQString(ctx.GetResourceName(tex->resourceId)) << lit("\" ") << tex->width
                << lit("x") << tex->height << lit("x") << tex->depth << lit(" mips=") << tex->mips
                << lit(" arraysize=") << tex->arraysize << lit(" fmt=")
-               << rdcToQString(ToStr(tex->format)) << lit("\n");
+               << resourceFormatToQString(tex->format) << lit("\n");
           }
           else
           {
@@ -1334,13 +2522,23 @@ void AgentAssistantPanel::repopulateModelCombo()
       break;
   }
 
-  ui->modelCombo->addItems(presets);
-  if(!saved.isEmpty())
-    ui->modelCombo->setCurrentText(saved);
-  else if(ui->modelCombo->count() > 0)
-    ui->modelCombo->setCurrentIndex(0);
+  if(!saved.isEmpty() && !presets.contains(saved))
+    presets.prepend(saved);
 
-  ui->modelCombo->setEditable(true);
+  ui->modelCombo->addItems(presets);
+
+  if(!saved.isEmpty())
+  {
+    int si = ui->modelCombo->findText(saved);
+    if(si >= 0)
+      ui->modelCombo->setCurrentIndex(si);
+  }
+  else if(ui->modelCombo->count() > 0)
+  {
+    ui->modelCombo->setCurrentIndex(0);
+  }
+
+  ui->modelCombo->setEditable(false);
   ui->modelCombo->blockSignals(false);
 }
 
@@ -1398,11 +2596,117 @@ void AgentAssistantPanel::onProviderChanged(int idx)
   loadSettingsFromConfig();
   m_activeLLMProvider = idx;
   updateProviderUi();
+  updateSetupVsChatLayout();
+}
+
+bool AgentAssistantPanel::hasMinimumLLMConnection() const
+{
+  const int p = ui->providerCombo->currentIndex();
+  const QString apiKey = ui->apiTokenEdit->text().trimmed();
+  if(p == (int)AgentLLMBackend::OpenAICompatible)
+    return true;
+  if(p == (int)AgentLLMBackend::AzureOpenAI)
+  {
+    return !apiKey.isEmpty() && !ui->azureEndpointEdit->text().trimmed().isEmpty() &&
+           !ui->azureDeploymentEdit->text().trimmed().isEmpty();
+  }
+  return !apiKey.isEmpty();
+}
+
+void AgentAssistantPanel::updateSetupVsChatLayout()
+{
+  const bool ready = hasMinimumLLMConnection();
+  ui->chatSection->setVisible(ready);
+  ui->continueToChatButton->setVisible(!ready);
+  if(ready)
+    ui->helpLabel->setText(m_helpTextFull);
+  else
+    ui->helpLabel->setText(
+        tr("Choose the LLM provider and enter your API token below. It is saved to RenderDoc's "
+           "config on this machine when you leave the field or press Save and continue. Then you "
+           "can ask about the capture."));
+}
+
+void AgentAssistantPanel::applyPanelChrome()
+{
+  const QString styleId = rdcToQString(m_Ctx.Config().UIStyle).trimmed();
+  const bool isAnime =
+      (styleId.compare(lit("RDAnimeGlass"), Qt::CaseInsensitive) == 0);
+  const bool explicitLight = (styleId.compare(lit("RDLight"), Qt::CaseInsensitive) == 0);
+  bool dark = false;
+
+  if(isAnime)
+  {
+    setStyleSheet(agentPanelStylesheetAnime());
+    return;
+  }
+
+  if(!explicitLight)
+  {
+    if(styleId.compare(lit("RDDark"), Qt::CaseInsensitive) == 0)
+      dark = true;
+    else if(styleId.isEmpty() || styleId.compare(lit("Native"), Qt::CaseInsensitive) == 0)
+      dark = palette().color(QPalette::Window).lightness() < 130;
+  }
+
+  setStyleSheet(dark ? agentPanelStylesheetDark() : agentPanelStylesheetLight());
+}
+
+void AgentAssistantPanel::applyReadableFonts()
+{
+  QFont help = ui->helpLabel->font();
+  const qreal hps = help.pointSizeF();
+  if(hps > 0.0)
+    help.setPointSizeF(qBound(10.0, hps + 1.0, 14.0));
+  else
+    help.setPointSize(10);
+  ui->helpLabel->setFont(help);
+
+  QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+  const qreal mps = mono.pointSizeF();
+  if(mps > 0.0)
+    mono.setPointSizeF(qMax(mps, 10.0));
+  else
+    mono.setPointSize(10);
+  ui->snapshotEdit->setFont(mono);
+}
+
+void AgentAssistantPanel::onContinueToChat()
+{
+  saveSettingsToConfig();
+  if(!hasMinimumLLMConnection())
+  {
+    QMessageBox::warning(this, tr("Pipeline Agent"),
+                         tr("Please enter the required API token (and for Azure, endpoint and "
+                            "deployment) before continuing."));
+    return;
+  }
+  updateSetupVsChatLayout();
+}
+
+void AgentAssistantPanel::onPersistConnectionFields()
+{
+  saveSettingsToConfig();
+  updateSetupVsChatLayout();
+}
+
+void AgentAssistantPanel::stopLLM()
+{
+  if(m_activeReply)
+  {
+    m_activeReply->abort();
+    m_activeReply = NULL;
+  }
+  m_toolUseRound = kMaxToolUseRounds;
+  setLLMUiBusy(false);
+  setStatusText(tr("Stopped"));
+  appendChatMessage(false, tr("[Stopped by user]"));
 }
 
 void AgentAssistantPanel::setLLMUiBusy(bool busy)
 {
   ui->sendLLMButton->setEnabled(!busy);
+  ui->stopButton->setEnabled(busy);
   ui->providerCombo->setEnabled(!busy);
   ui->apiTokenEdit->setEnabled(!busy);
   ui->modelCombo->setEnabled(!busy);
@@ -1410,6 +2714,7 @@ void AgentAssistantPanel::setLLMUiBusy(bool busy)
   ui->azureDeploymentEdit->setEnabled(!busy);
   ui->compatibleBaseUrlEdit->setEnabled(!busy);
   ui->includeDisasmCheck->setEnabled(!busy);
+  ui->continueToChatButton->setEnabled(!busy);
 }
 
 void AgentAssistantPanel::copyPrompt()
@@ -1479,8 +2784,16 @@ void AgentAssistantPanel::sendToLLM()
     shaderBlock = rdcToQString(disasm);
   }
 
-  QString userBody =
-      snapshot + lit("\n\n") + shaderBlock + lit("\nUser question:\n") + question;
+  QString eventTree;
+  if(m_Ctx.IsCaptureLoaded())
+    eventTree = formatEventTree();
+
+  QString userBody = snapshot;
+  if(!eventTree.isEmpty())
+    userBody += lit("\n\n") + eventTree;
+  if(!shaderBlock.isEmpty())
+    userBody += lit("\n\n") + shaderBlock;
+  userBody += lit("\nUser question:\n") + question;
   const int kMaxUserBodyChars = 450000;
   if(userBody.size() > kMaxUserBodyChars)
   {
@@ -1620,16 +2933,25 @@ void AgentAssistantPanel::sendToLLM()
   req.setUrl(url);
   req.setRawHeader("User-Agent", "RenderDoc-PipelineAgent/1.0");
 
-  ui->replyEdit->setPlainText(tr("Waiting for response..."));
-  setLLMUiBusy(true);
+  m_toolUseRound = 0;
+  m_lastUserQuestion = question;
+  m_preToolEID = m_Ctx.IsCaptureLoaded() ? m_Ctx.CurEvent() : 0;
 
-  QNetworkReply *reply = m_net->post(req, payload);
-  QObject::connect(reply, &QNetworkReply::finished, this, &AgentAssistantPanel::onLLMFinished);
+  appendChatMessage(true, question);
+  ui->questionEdit->clear();
+  appendChatMessage(false, tr("Waiting for response..."));
+  setLLMUiBusy(true);
+  setStatusText(tr("Sending request to LLM..."));
+
+  m_activeReply = m_net->post(req, payload);
+  QObject::connect(m_activeReply, &QNetworkReply::finished, this, &AgentAssistantPanel::onLLMFinished);
 }
 
 void AgentAssistantPanel::onLLMFinished()
 {
   QNetworkReply *reply = qobject_cast<QNetworkReply *>(QObject::sender());
+  if(reply == m_activeReply)
+    m_activeReply = NULL;
   setLLMUiBusy(false);
   if(!reply)
     return;
@@ -1640,10 +2962,28 @@ void AgentAssistantPanel::onLLMFinished()
   QString err;
   QString text;
 
+  if(!m_chatHistory.isEmpty() && !m_chatHistory.last().isUser &&
+     m_chatHistory.last().text == tr("Waiting for response..."))
+    m_chatHistory.removeLast();
+
   if(reply->error() != QNetworkReply::NoError)
   {
     err = reply->errorString() + lit("\n") + QString::fromUtf8(reply->readAll());
-    ui->replyEdit->setPlainText(tr("HTTP error:\n") + err);
+    if(reply->error() == QNetworkReply::OperationCanceledError)
+    {
+      setStatusText(tr("Stopped"));
+      return;
+    }
+    QString sslHint;
+    if(err.contains(lit("SSL"), Qt::CaseInsensitive) || err.contains(lit("TLS"), Qt::CaseInsensitive))
+    {
+      sslHint = lit(
+          "\n\n[SSL/TLS on Windows] Qt needs matching OpenSSL DLLs (same major version as your Qt "
+          "build). Copy ssleay32.dll + libeay32.dll (for Qt 5.9) or libssl/libcrypto (for Qt 5.12+) "
+          "from your Qt bin next to qrenderdoc.exe.");
+    }
+    appendChatMessage(false, tr("HTTP error:\n") + err + sslHint);
+    setStatusText(tr("Error"));
     return;
   }
 
@@ -1652,11 +2992,13 @@ void AgentAssistantPanel::onLLMFinished()
   QJsonDocument doc = QJsonDocument::fromJson(body, &jerr);
   if(!doc.isObject())
   {
-    ui->replyEdit->setPlainText(tr("Invalid JSON response:\n") + QString::fromUtf8(body));
+    appendChatMessage(false, tr("Invalid JSON response:\n") + QString::fromUtf8(body));
+    setStatusText(tr("Error"));
     return;
   }
 
   QJsonObject root = doc.object();
+  parseTokenUsage(root);
 
   switch((AgentLLMBackend)p)
   {
@@ -1673,9 +3015,487 @@ void AgentAssistantPanel::onLLMFinished()
   }
 
   if(!err.isEmpty() && text.isEmpty())
-    ui->replyEdit->setPlainText(tr("API error:\n") + err + lit("\n\nRaw:\n") + QString::fromUtf8(body));
-  else if(text.isEmpty())
-    ui->replyEdit->setPlainText(tr("Empty reply:\n") + QString::fromUtf8(body));
+  {
+    appendChatMessage(false, tr("API error:\n") + err + lit("\n\nRaw:\n") + QString::fromUtf8(body));
+    setStatusText(tr("Error"));
+    return;
+  }
+  if(text.isEmpty())
+  {
+    appendChatMessage(false, tr("Empty reply:\n") + QString::fromUtf8(body));
+    setStatusText(tr("Error"));
+    return;
+  }
+
+  if(m_toolUseRound < kMaxToolUseRounds && m_Ctx.IsCaptureLoaded())
+  {
+    bool listEvents = text.contains(lit("[LIST_EVENTS]"));
+    uint32_t scanEID = parseScanPass(text);
+    uint32_t fetchEID = parseFetchEID(text);
+
+    if(listEvents || scanEID > 0 || fetchEID > 0)
+    {
+      QString cleanText = text;
+      cleanText.replace(QRegExp(lit("\\[LIST_EVENTS\\]")), QString());
+      cleanText.replace(QRegExp(lit("\\[SCAN_PASS\\s+\\d+\\]")), QString());
+      cleanText.replace(QRegExp(lit("\\[FETCH_EID\\s+\\d+\\]")), QString());
+      cleanText = cleanText.trimmed();
+      if(!cleanText.isEmpty())
+        appendChatMessage(false, cleanText);
+
+      m_toolUseRound++;
+      setLLMUiBusy(true);
+
+      if(listEvents)
+      {
+        setStatusText(QStringLiteral("Tool: LIST_EVENTS (round %1/%2)")
+                          .arg(m_toolUseRound)
+                          .arg(kMaxToolUseRounds));
+        appendChatMessage(false, tr("Building event tree..."));
+        QString tree = formatEventTree();
+        QString followUp = QStringLiteral(
+            "[Tool result: event tree]\n%1\n"
+            "[End tool result]\n\n"
+            "Use this event tree to understand the full rendering pipeline. "
+            "Use [SCAN_PASS nnnn] on marker EIDs to sample draws in a pass, "
+            "or [FETCH_EID nnnn] for a single event's full pipeline state. "
+            "Analyze the rendering order and provide a complete pipeline breakdown.")
+                             .arg(tree);
+        sendLLMRequestRaw(followUp);
+      }
+      else if(scanEID > 0)
+      {
+        setStatusText(QStringLiteral("Tool: SCAN_PASS EID %1 (round %2/%3)")
+                          .arg(scanEID)
+                          .arg(m_toolUseRound)
+                          .arg(kMaxToolUseRounds));
+        sendFollowUpWithScan(scanEID);
+      }
+      else
+      {
+        setStatusText(QStringLiteral("Tool: FETCH_EID %1 (round %2/%3)")
+                          .arg(fetchEID)
+                          .arg(m_toolUseRound)
+                          .arg(kMaxToolUseRounds));
+        sendFollowUpWithData(fetchEID);
+      }
+      return;
+    }
+  }
+
+  appendChatMessage(false, text);
+  setStatusText(tr("Ready"));
+}
+
+void AgentAssistantPanel::appendChatMessage(bool isUser, const QString &text)
+{
+  m_chatHistory.append({isUser, text});
+  renderChatLog();
+}
+
+static QString escapeHtml(const QString &s)
+{
+  QString out = s;
+  out.replace(QLatin1Char('&'), lit("&amp;"));
+  out.replace(QLatin1Char('<'), lit("&lt;"));
+  out.replace(QLatin1Char('>'), lit("&gt;"));
+  out.replace(QLatin1Char('\n'), lit("<br>"));
+  return out;
+}
+
+QString AgentAssistantPanel::linkifyEIDs(const QString &html)
+{
+  QRegExp rx(lit("\\bEID\\s*(\\d+)\\b"));
+  QString out = html;
+  int offset = 0;
+  while(rx.indexIn(out, offset) >= 0)
+  {
+    int pos = rx.pos();
+    QString eid = rx.cap(1);
+    QString link = QStringLiteral("<a href=\"eid://%1\" style=\"color:#8CC8F0;\">EID %1</a>").arg(eid);
+    out.replace(pos, rx.matchedLength(), link);
+    offset = pos + link.size();
+  }
+  return out;
+}
+
+void AgentAssistantPanel::renderChatLog()
+{
+  QString html;
+  html += lit("<html><body style=\"margin:4px;\">");
+
+  for(const ChatMessage &msg : m_chatHistory)
+  {
+    QString escaped = escapeHtml(msg.text);
+    escaped = linkifyEIDs(escaped);
+
+    if(msg.isUser)
+    {
+      html += lit(
+          "<div style=\"margin:6px 0; padding:10px 14px; "
+          "background-color:rgba(92,173,224,40); "
+          "border:1px solid rgba(92,173,224,50); "
+          "border-top:1px solid rgba(140,210,250,60); "
+          "border-radius:12px; text-align:right; color:#E0ECF6;\">"
+          "<b style=\"color:#8CC8F0;\">You:</b><br>%1</div>")
+                  .arg(escaped);
+    }
+    else
+    {
+      html += lit(
+          "<div style=\"margin:6px 0; padding:10px 14px; "
+          "background-color:rgba(255,255,255,25); "
+          "border:1px solid rgba(255,255,255,35); "
+          "border-top:1px solid rgba(255,255,255,55); "
+          "border-left:1px solid rgba(255,255,255,40); "
+          "border-radius:12px; color:#E0ECF6;\">"
+          "<b style=\"color:#8CC8F0;\">Agent:</b><br>%1</div>")
+                  .arg(escaped);
+    }
+  }
+
+  html += lit("</body></html>");
+
+  ui->chatLog->setHtml(html);
+  QScrollBar *sb = ui->chatLog->verticalScrollBar();
+  if(sb)
+    sb->setValue(sb->maximum());
+}
+
+void AgentAssistantPanel::onChatLinkClicked(const QUrl &url)
+{
+  if(url.scheme() == lit("eid"))
+  {
+    bool ok = false;
+    uint32_t eid = url.host().toUInt(&ok);
+    if(ok && m_Ctx.IsCaptureLoaded())
+    {
+      m_Ctx.SetEventID({}, eid, eid);
+    }
+  }
+}
+
+void AgentAssistantPanel::onSnapshotToggled(bool checked)
+{
+  if(checked)
+  {
+    ui->snapshotEdit->setMaximumHeight(16777215);
+    ui->snapshotEdit->setVisible(true);
+    ui->snapshotToggleBtn->setText(tr("Pipeline snapshot (click to collapse)"));
+  }
   else
-    ui->replyEdit->setPlainText(text);
+  {
+    ui->snapshotEdit->setMaximumHeight(0);
+    ui->snapshotEdit->setVisible(false);
+    ui->snapshotToggleBtn->setText(tr("Pipeline snapshot (click to expand)"));
+  }
+}
+
+void AgentAssistantPanel::setStatusText(const QString &text)
+{
+  ui->statusLabel->setText(text);
+}
+
+void AgentAssistantPanel::parseTokenUsage(const QJsonObject &root)
+{
+  QJsonObject usage = root[lit("usage")].toObject();
+  if(usage.isEmpty())
+    return;
+
+  int prompt = usage[lit("prompt_tokens")].toInt(0);
+  int completion = usage[lit("completion_tokens")].toInt(0);
+
+  if(prompt <= 0 && completion <= 0)
+  {
+    prompt = usage[lit("input_tokens")].toInt(0);
+    completion = usage[lit("output_tokens")].toInt(0);
+  }
+
+  if(prompt > 0)
+    m_totalPromptTokens += prompt;
+  if(completion > 0)
+    m_totalCompletionTokens += completion;
+
+  updateTokenLabel();
+}
+
+void AgentAssistantPanel::updateTokenLabel()
+{
+  int total = m_totalPromptTokens + m_totalCompletionTokens;
+  if(total <= 0)
+  {
+    ui->tokenUsageLabel->setText(QString());
+    return;
+  }
+  ui->tokenUsageLabel->setText(
+      QStringLiteral("Tokens: %1 prompt + %2 completion = %3 total")
+          .arg(m_totalPromptTokens)
+          .arg(m_totalCompletionTokens)
+          .arg(total));
+}
+
+void AgentAssistantPanel::onSearchToggle()
+{
+  bool visible = !ui->searchEdit->isVisible();
+  ui->searchEdit->setVisible(visible);
+  ui->searchNextBtn->setVisible(visible);
+  ui->searchCloseBtn->setVisible(visible);
+  if(visible)
+  {
+    ui->searchEdit->setFocus();
+    ui->searchEdit->selectAll();
+  }
+  else
+  {
+    ui->chatLog->setExtraSelections(QList<QTextEdit::ExtraSelection>());
+  }
+}
+
+void AgentAssistantPanel::onSearchClose()
+{
+  ui->searchEdit->setVisible(false);
+  ui->searchNextBtn->setVisible(false);
+  ui->searchCloseBtn->setVisible(false);
+  ui->chatLog->setExtraSelections(QList<QTextEdit::ExtraSelection>());
+  m_searchMatchIndex = -1;
+}
+
+void AgentAssistantPanel::onSearchNext()
+{
+  QString term = ui->searchEdit->text();
+  if(term.isEmpty())
+    return;
+
+  QTextDocument *doc = ui->chatLog->document();
+  QTextCursor cursor = ui->chatLog->textCursor();
+  QTextCursor found = doc->find(term, cursor);
+
+  if(found.isNull())
+    found = doc->find(term, 0);
+
+  if(!found.isNull())
+  {
+    ui->chatLog->setTextCursor(found);
+    ui->chatLog->ensureCursorVisible();
+
+    QTextEdit::ExtraSelection sel;
+    sel.cursor = found;
+    QTextCharFormat fmt;
+    fmt.setBackground(QColor(255, 255, 120));
+    fmt.setForeground(QColor(0, 0, 0));
+    sel.format = fmt;
+    ui->chatLog->setExtraSelections(QList<QTextEdit::ExtraSelection>() << sel);
+  }
+}
+
+uint32_t AgentAssistantPanel::parseFetchEID(const QString &text)
+{
+  QRegExp rx(lit("\\[FETCH_EID\\s+(\\d+)\\]"));
+  if(rx.indexIn(text) >= 0)
+  {
+    bool ok = false;
+    uint32_t eid = rx.cap(1).toUInt(&ok);
+    if(ok)
+      return eid;
+  }
+  return 0;
+}
+
+uint32_t AgentAssistantPanel::parseScanPass(const QString &text)
+{
+  QRegExp rx(lit("\\[SCAN_PASS\\s+(\\d+)\\]"));
+  if(rx.indexIn(text) >= 0)
+  {
+    bool ok = false;
+    uint32_t eid = rx.cap(1).toUInt(&ok);
+    if(ok)
+      return eid;
+  }
+  return 0;
+}
+
+void AgentAssistantPanel::sendFollowUpWithScan(uint32_t markerEID)
+{
+  appendChatMessage(false,
+                    QStringLiteral("Scanning pass EID %1 ...").arg(markerEID));
+
+  QString scan = scanPassSummary(markerEID);
+  if(scan.isEmpty())
+  {
+    appendChatMessage(false,
+                      QStringLiteral("Could not scan pass for EID %1.").arg(markerEID));
+    setLLMUiBusy(false);
+    return;
+  }
+
+  QString followUp = QStringLiteral(
+      "[Tool result: pass scan for EID %1]\n%2\n"
+      "[End tool result]\n\n"
+      "Continue your analysis using this pass scan data. "
+      "You may use [FETCH_EID nnnn] to get more detail on specific draws, "
+      "[SCAN_PASS nnnn] on sub-passes, or [LIST_EVENTS] for the full tree. "
+      "When ready, provide your complete pipeline analysis to the user.")
+                       .arg(markerEID)
+                       .arg(scan);
+
+  sendLLMRequestRaw(followUp);
+}
+
+void AgentAssistantPanel::sendFollowUpWithData(uint32_t eid)
+{
+  appendChatMessage(false,
+                    QStringLiteral("Fetching pipeline data for EID %1 ...").arg(eid));
+
+  QString snap = snapshotForEID(eid);
+  if(snap.isEmpty())
+  {
+    appendChatMessage(false,
+                      QStringLiteral("Could not fetch data for EID %1.").arg(eid));
+    setLLMUiBusy(false);
+    return;
+  }
+
+  QString followUp = QStringLiteral(
+      "[Tool result: pipeline snapshot for EID %1]\n%2\n"
+      "[End tool result]\n\n"
+      "Continue your analysis. Available tools: [LIST_EVENTS], [SCAN_PASS nnnn], [FETCH_EID nnnn]. "
+      "When ready, provide your complete answer to the user.")
+                         .arg(eid)
+                         .arg(snap);
+
+  sendLLMRequestRaw(followUp);
+}
+
+void AgentAssistantPanel::sendLLMRequestRaw(const QString &userBody)
+{
+  PersistantConfig &cfg = m_Ctx.Config();
+  const int p = ui->providerCombo->currentIndex();
+  QString apiKey = ui->apiTokenEdit->text().trimmed();
+
+  const int kMaxBody = 450000;
+  QString body = userBody;
+  if(body.size() > kMaxBody)
+  {
+    body.truncate(kMaxBody);
+    body += lit("\n\n[Truncated for API limits.]\n");
+  }
+
+  QUrl url;
+  QByteArray payload;
+  QNetworkRequest req;
+  auto setJson = [&req]() {
+    req.setHeader(QNetworkRequest::ContentTypeHeader, lit("application/json"));
+  };
+
+  switch((AgentLLMBackend)p)
+  {
+    case AgentLLMBackend::OpenAI:
+      url = QUrl(lit("https://api.openai.com/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    case AgentLLMBackend::Anthropic:
+    {
+      url = QUrl(lit("https://api.anthropic.com/v1/messages"));
+      QJsonObject root;
+      root[lit("model")] = rdcToQString(cfg.AgentAssistant_AnthropicModel);
+      root[lit("max_tokens")] = 8192;
+      root[lit("system")] = systemPrompt();
+      QJsonArray msgs;
+      QJsonObject u;
+      u[lit("role")] = lit("user");
+      u[lit("content")] = body;
+      msgs.append(u);
+      root[lit("messages")] = msgs;
+      payload = QJsonDocument(root).toJson(QJsonDocument::Compact);
+      setJson();
+      req.setRawHeader("x-api-key", apiKey.toUtf8());
+      req.setRawHeader("anthropic-version", "2023-06-01");
+      break;
+    }
+    case AgentLLMBackend::GoogleGemini:
+    {
+      QString mid = rdcToQString(cfg.AgentAssistant_GoogleModel).trimmed();
+      if(mid.isEmpty())
+        mid = lit("gemini-1.5-flash");
+      url.setUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/%1:generateContent").arg(mid));
+      QUrlQuery q;
+      q.addQueryItem(lit("key"), apiKey);
+      url.setQuery(q);
+      QJsonObject root;
+      QJsonArray contents;
+      QJsonObject turn;
+      turn[lit("role")] = lit("user");
+      QJsonArray parts;
+      QJsonObject ptxt;
+      ptxt[lit("text")] = systemPrompt() + QStringLiteral("\n\n") + body;
+      parts.append(ptxt);
+      turn[lit("parts")] = parts;
+      contents.append(turn);
+      root[lit("contents")] = contents;
+      payload = QJsonDocument(root).toJson(QJsonDocument::Compact);
+      setJson();
+      break;
+    }
+    case AgentLLMBackend::AzureOpenAI:
+    {
+      QString ep = rdcToQString(cfg.AgentAssistant_AzureEndpoint).trimmed();
+      QString dep = rdcToQString(cfg.AgentAssistant_AzureDeployment).trimmed();
+      while(ep.endsWith(QLatin1Char('/')))
+        ep.chop(1);
+      url = QUrl(ep + lit("/openai/deployments/") + dep +
+                 lit("/chat/completions?api-version=2024-02-15-preview"));
+      payload = makeOpenAIChatPayload(dep, body);
+      setJson();
+      req.setRawHeader("api-key", apiKey.toUtf8());
+      break;
+    }
+    case AgentLLMBackend::OpenAICompatible:
+    {
+      QString base = rdcToQString(cfg.AgentAssistant_CompatibleBaseUrl).trimmed();
+      while(base.endsWith(QLatin1Char('/')))
+        base.chop(1);
+      if(base.isEmpty())
+        base = lit("https://api.openai.com");
+      url = QUrl(base + lit("/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel).trimmed(), body);
+      setJson();
+      if(!apiKey.isEmpty())
+        req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    }
+    case AgentLLMBackend::OpenRouter:
+      url = QUrl(lit("https://openrouter.ai/api/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenRouterModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      req.setRawHeader("HTTP-Referer", "https://renderdoc.org");
+      req.setRawHeader("X-Title", "RenderDoc Pipeline Agent");
+      break;
+    case AgentLLMBackend::GLM_Zhipu:
+      url = QUrl(lit("https://open.bigmodel.cn/api/paas/v4/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GLMModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    case AgentLLMBackend::GitHubModels:
+      url = QUrl(lit("https://models.github.ai/inference/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GitHubModelsModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      req.setRawHeader("Accept", "application/vnd.github+json");
+      req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+      break;
+  }
+
+  req.setUrl(url);
+  req.setRawHeader("User-Agent", "RenderDoc-PipelineAgent/1.0");
+
+  setStatusText(QStringLiteral("Waiting for LLM response (round %1/%2)...")
+                    .arg(m_toolUseRound + 1)
+                    .arg(kMaxToolUseRounds));
+
+  m_activeReply = m_net->post(req, payload);
+  QObject::connect(m_activeReply, &QNetworkReply::finished, this, &AgentAssistantPanel::onLLMFinished);
 }

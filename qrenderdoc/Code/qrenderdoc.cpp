@@ -25,6 +25,12 @@
 #include <stdio.h>
 #include <QApplication>
 #include <QCommandLineParser>
+#if defined(Q_OS_WIN)
+#include <QLibrary>
+#include <QFile>
+#include <QStringList>
+#include <QtNetwork/QSslSocket>
+#endif
 #include <QDir>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -180,6 +186,62 @@ void hideOption(QCommandLineOption &opt)
 #endif
 }
 
+#if defined(Q_OS_WIN)
+// Qt on Windows links OpenSSL dynamically; load libcrypto before libssl so HTTPS (LLM) works when
+// DLLs sit next to qrenderdoc.exe (copied from the same Qt bin used to build).
+static void preloadOpenSslWindows()
+{
+  if(QSslSocket::supportsSsl())
+    return;
+
+  QStringList dirs;
+  const QByteArray env = qgetenv("RENDERDOC_OPENSSL_PATH");
+  if(!env.isEmpty())
+  {
+    const QString p = QDir::fromNativeSeparators(QString::fromUtf8(env));
+    if(!p.isEmpty())
+      dirs << p;
+  }
+  dirs << QCoreApplication::applicationDirPath();
+  dirs << QDir(QCoreApplication::applicationDirPath()).filePath(lit("openssl"));
+
+  struct Pair
+  {
+    const char *crypt, *ssl;
+  };
+  static const Pair pairs[] = {
+      {"libcrypto-3-x64", "libssl-3-x64"},
+      {"libcrypto-3", "libssl-3"},
+      {"libcrypto-1_1-x64", "libssl-1_1-x64"},
+      {"libcrypto-1_1", "libssl-1_1"},
+      {"libeay32", "ssleay32"},
+  };
+
+  for(const QString &dir : dirs)
+  {
+    if(dir.isEmpty())
+      continue;
+    const QString base = QDir::fromNativeSeparators(dir) + QLatin1Char('/');
+    for(const Pair &p : pairs)
+    {
+      const QString cdll = base + QString::fromLatin1(p.crypt) + QStringLiteral(".dll");
+      const QString sdll = base + QString::fromLatin1(p.ssl) + QStringLiteral(".dll");
+      if(!QFile::exists(cdll) || !QFile::exists(sdll))
+        continue;
+      QLibrary crypto(cdll);
+      QLibrary ssl(sdll);
+      if(crypto.load() && ssl.load() && QSslSocket::supportsSsl())
+        return;
+    }
+  }
+
+  qWarning() << "OpenSSL DLLs not found or wrong version; HTTPS (Pipeline Agent) will fail."
+             << "Searched:" << dirs.join(lit("; "))
+             << ". Copy libssl/libcrypto from the Qt bin used to build, or set RENDERDOC_OPENSSL_PATH."
+             << "Qt SSL build:" << QSslSocket::sslLibraryBuildVersionString();
+}
+#endif
+
 int main(int argc, char *argv[])
 {
   // call this as the very first thing - no-op on other platforms, but on linux it means
@@ -323,6 +385,10 @@ int main(int argc, char *argv[])
 #endif
 
   QApplication application(argc, argv);
+
+#if defined(Q_OS_WIN)
+  preloadOpenSslWindows();
+#endif
 
   QCommandLineParser parser;
   parser.setApplicationDescription(tr("Qt UI for RenderDoc"));

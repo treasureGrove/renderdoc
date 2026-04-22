@@ -1825,6 +1825,11 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
+    <Content Include="Resources\agent_bg.jpg">
+      <Link>agent_bg.jpg</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
     <Content Include="$(PythonDLLsDir)\select.pyd" Condition="Exists('$(PythonDLLsDir)\select.pyd')">
       <Link>select.pyd</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -1952,6 +1957,26 @@
     </Content>
     <Content Include="$(QtBinDir)\libssl-1_1-x64.dll" Condition="Exists('$(QtBinDir)\libssl-1_1-x64.dll') AND '$(Platform)'=='x64'">
       <Link>libssl-1_1-x64.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(QtBinDir)\libcrypto-3-x64.dll" Condition="Exists('$(QtBinDir)\libcrypto-3-x64.dll') AND '$(Platform)'=='x64'">
+      <Link>libcrypto-3-x64.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(QtBinDir)\libssl-3-x64.dll" Condition="Exists('$(QtBinDir)\libssl-3-x64.dll') AND '$(Platform)'=='x64'">
+      <Link>libssl-3-x64.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(QtBinDir)\libcrypto-3.dll" Condition="Exists('$(QtBinDir)\libcrypto-3.dll') AND '$(Platform)'=='x64'">
+      <Link>libcrypto-3.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(QtBinDir)\libssl-3.dll" Condition="Exists('$(QtBinDir)\libssl-3.dll') AND '$(Platform)'=='x64'">
+      <Link>libssl-3.dll</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
@@ -2165,6 +2190,22 @@
     <Natvis Include="python36.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <!-- Copy OpenSSL DLLs from the Qt tree used for this build so HTTPS (Pipeline Agent) works without manual steps. -->
+  <Target Name="RenderDocCopyQtOpenSsl" AfterTargets="Build">
+    <Copy Condition="'$(Platform)'=='x64' And Exists('$(QtBinDir)\libssl-1_1-x64.dll')" SourceFiles="$(QtBinDir)\libssl-1_1-x64.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='x64' And Exists('$(QtBinDir)\libcrypto-1_1-x64.dll')" SourceFiles="$(QtBinDir)\libcrypto-1_1-x64.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='x64' And Exists('$(QtBinDir)\libssl-3-x64.dll')" SourceFiles="$(QtBinDir)\libssl-3-x64.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='x64' And Exists('$(QtBinDir)\libcrypto-3-x64.dll')" SourceFiles="$(QtBinDir)\libcrypto-3-x64.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='x64' And Exists('$(QtBinDir)\libssl-3.dll')" SourceFiles="$(QtBinDir)\libssl-3.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='x64' And Exists('$(QtBinDir)\libcrypto-3.dll')" SourceFiles="$(QtBinDir)\libcrypto-3.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='Win32' And Exists('$(QtBinDir)\libssl-1_1.dll')" SourceFiles="$(QtBinDir)\libssl-1_1.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy Condition="'$(Platform)'=='Win32' And Exists('$(QtBinDir)\libcrypto-1_1.dll')" SourceFiles="$(QtBinDir)\libcrypto-1_1.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <!-- Optional: drop matching libssl/libcrypto from qrenderdoc/3rdparty/openssl/$(Platform)/ when Qt bin has none (see README in that folder). -->
+    <ItemGroup>
+      <RenderDocBundledOpenSsl Include="$(ProjectDir)3rdparty\openssl\$(Platform)\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(RenderDocBundledOpenSsl)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets" />
   <ItemGroup>
     <ProjectTools Include="python_sheet" />
