@@ -30,6 +30,25 @@ API Key 会写入本机 RenderDoc 配置文件（**未加密**），请使用权
 
 ---
 
+## 使用案例
+
+**场景**：已加载一帧 Capture，左侧 **Event Browser** 中可见各 Pass（如 Colour Pass、Depth-calc Pass 等），希望在不动手翻事件的前提下，让模型概括「这帧在干什么」。
+
+**操作**：
+
+1. 打开 **Pipeline Agent** 页签，配置 **Provider**（示例为 OpenRouter）、**API Token**，并在 **Model** 中选择可用模型（如 Claude 3.5 系列）。按需勾选 **Include shader disassembly**，以便上下文中附带绑定阶段的反汇编。  
+2. 在底部输入框用自然语言提问，例如：**「帮我解析下渲染管线」**。  
+3. 模型可在多轮对话中自动拉取事件树、扫描主要 Pass（界面中会显示 *Waiting for LLM response (round n/15)* 等状态）；回复中可给出**管线概况**（绘制次数、Dispatch、Clear、Pass 数量等）、**分阶段说明**并引用 **EID**，便于与左侧事件树对照。  
+4. 对话区底部会显示 **Token 累计用量**（prompt + completion），便于估算调用成本。
+
+**效果示意**（左侧为事件列表与时间线，中间为 Agent 对话与解析结果）：
+
+<p align="center">
+  <img src="docs/images/pipeline_agent_usage_case.png" alt="使用案例：用自然语言解析本帧渲染管线" width="920" />
+</p>
+
+---
+
 ## 构建与运行
 
 从源码编译方式与上游一致，请参阅 [`docs/CONTRIBUTING/Compiling.md`](docs/CONTRIBUTING/Compiling.md)。Windows 下通常使用 Visual Studio 打开生成目录中的解决方案并按说明配置 Qt 等依赖。
