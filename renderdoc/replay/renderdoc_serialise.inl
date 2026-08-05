@@ -1574,10 +1574,7 @@ void DoSerialise(SerialiserType &ser, D3D12Pipe::OM &el)
   SERIALISE_MEMBER(depthReadOnly);
   SERIALISE_MEMBER(stencilReadOnly);
 
-  SERIALISE_MEMBER(multiSampleCount);
-  SERIALISE_MEMBER(multiSampleQuality);
-
-  SIZE_CHECK(240);
+  SIZE_CHECK(232);
 }
 
 template <typename SerialiserType>
@@ -1682,7 +1679,7 @@ void DoSerialise(SerialiserType &ser, D3D12Pipe::State &el)
 
   SERIALISE_MEMBER(resourceStates);
 
-  SIZE_CHECK(800);
+  SIZE_CHECK(792);
 }
 
 #pragma endregion D3D12 pipeline state
@@ -2137,6 +2134,9 @@ void DoSerialise(SerialiserType &ser, VKPipe::Rasterizer &el)
   SERIALISE_MEMBER(depthBias);
   SERIALISE_MEMBER(depthBiasClamp);
   SERIALISE_MEMBER(slopeScaledDepthBias);
+  SERIALISE_MEMBER(depthBiasExact);
+  SERIALISE_MEMBER(depthBiasRepresentation);
+
   SERIALISE_MEMBER(lineWidth);
 
   SERIALISE_MEMBER(lineRasterMode);
@@ -2146,7 +2146,7 @@ void DoSerialise(SerialiserType &ser, VKPipe::Rasterizer &el)
   SERIALISE_MEMBER(pipelineShadingRate);
   SERIALISE_MEMBER(shadingRateCombiners);
 
-  SIZE_CHECK(68);
+  SIZE_CHECK(76);
 }
 
 template <typename SerialiserType>
@@ -2332,7 +2332,7 @@ void DoSerialise(SerialiserType &ser, VKPipe::State &el)
 
   SERIALISE_MEMBER(conditionalRendering);
 
-  SIZE_CHECK(1928);
+  SIZE_CHECK(1936);
 }
 
 #pragma endregion Vulkan pipeline state

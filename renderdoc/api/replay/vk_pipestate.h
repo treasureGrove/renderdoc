@@ -111,7 +111,7 @@ struct DescriptorSet
 of their descriptors.
 
 .. note::
-  The returned values from :meth:`PipeState.GetConstantBuffer` already have these offsets applied.
+  The returned values from :meth:`PipeState.GetConstantBlock` already have these offsets applied.
 
 :type: List[VKDynamicOffset]
 )");
@@ -874,6 +874,18 @@ See :data:`conservativeRasterizationMode`
 :type: float
 )");
   float slopeScaledDepthBias = 0.0f;
+
+  DOCUMENT(R"(Whether the depth bias least representable value is calculated exactly.
+
+:type: bool
+)");
+  bool depthBiasExact = false;
+
+  DOCUMENT(R"(The mode used for calculating the depth bias least representable value.
+
+:type: DepthBiasMode
+)");
+  DepthBiasMode depthBiasRepresentation = DepthBiasMode::Default;
 
   DOCUMENT(R"(The fixed line width in pixels.
 

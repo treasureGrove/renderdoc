@@ -409,6 +409,10 @@ struct VulkanCreationInfo
     uint32_t stippleFactor;
     uint16_t stipplePattern;
 
+    // VkDepthBiasRepresentationInfoEXT
+    VkDepthBiasRepresentationEXT depthBiasRepresentation;
+    VkBool32 depthBiasExact;
+
     // VkPipelineMultisampleStateCreateInfo
     VkSampleCountFlagBits rasterizationSamples;
     bool sampleShadingEnable;
@@ -766,6 +770,9 @@ struct VulkanCreationInfo
     VkFormat format;
     VkImageSubresourceRange range;
     VkComponentMapping componentMapping;
+
+    uint32_t storageSliceOffset;
+    uint32_t storageSliceCount;
 
     bool isDepthImage;
 

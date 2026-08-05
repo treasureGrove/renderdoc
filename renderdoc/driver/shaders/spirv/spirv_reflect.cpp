@@ -484,9 +484,13 @@ StructSizes CalculateStructProps(uint32_t emptyStructSize, const ShaderConstant 
     }
   }
 
-  ret.scalarSize *= RDCMAX(c.type.elements, 1U);
-  ret.baseSize *= RDCMAX(c.type.elements, 1U);
-  ret.extendedSize *= RDCMAX(c.type.elements, 1U);
+  if(c.type.elements > 1)
+  {
+    const uint32_t nonFinalArraySize = (c.type.elements - 1) * c.type.arrayByteStride;
+    ret.scalarSize += nonFinalArraySize;
+    ret.baseSize += nonFinalArraySize;
+    ret.extendedSize += nonFinalArraySize;
+  }
 
   return ret;
 }
@@ -746,7 +750,7 @@ void Reflector::CalculateArrayTypeName(DataType &type)
 
     // if not, use the constant value
     if(lengthName.empty())
-      lengthName = StringiseConstant(type.length);
+      lengthName = StringiseConstant(type.length, {});
 
     // if not, it might be a spec constant, use the fallback
     if(lengthName.empty())
@@ -1014,6 +1018,8 @@ void Reflector::MakeReflection(const GraphicsAPI sourceAPI, const ShaderStage st
     case SourceLanguage::WGSL:
     case SourceLanguage::Zig:
     case SourceLanguage::Rust:
+    case SourceLanguage::Pred:
+    case SourceLanguage::ApilaJai:
     case SourceLanguage::Max: break;
   }
 
@@ -2465,6 +2471,36 @@ void Reflector::AddSignatureParameter(const bool isInput, const ShaderStage stag
 #include "catch/catch.hpp"
 #include "data/glsl_shaders.h"
 #include "glslang_compile.h"
+
+#if 0
+
+TEST_CASE("DO NOT COMMIT - convenience test", "[spirv]")
+{
+  // this test loads a file from disk and passes it through Reflector. Useful for when you
+  // are iterating on a shader and don't want to have to load a whole capture.
+  rdcarray<uint32_t> buf;
+  FileIO::ReadAll("/path/to/file.spv", buf);
+
+  rdcspv::Reflector reflector;
+
+  reflector.Parse(buf);
+
+  ShaderReflection reflection;
+  SPIRVPatchData patchData;
+
+  rdcstr entryPoint = reflector.EntryPoints()[0].name;
+  ShaderStage stage = reflector.EntryPoints()[0].stage;
+
+  reflector.MakeReflection(GraphicsAPI::Vulkan, stage, entryPoint, {}, reflection, patchData);
+
+  // the only thing fetched lazily is the disassembly, so grab that here
+  std::map<size_t, uint32_t> instructionLines;
+  rdcstr disasm = reflector.Disassemble(entryPoint, {}, instructionLines);
+
+  RDCLOG("%s", disasm.c_str());
+}
+
+#endif
 
 TEST_CASE("Validate SPIR-V reflection", "[spirv][reflection]")
 {

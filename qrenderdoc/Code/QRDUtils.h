@@ -208,13 +208,13 @@ private:
   static GraphicsAPI m_API;
 
   static bool CheckInvalidUnbounded(const StructFormatData &structDef,
-                                    const QMap<QString, StructFormatData> &structelems,
+                                    const QMap<QString, StructFormatData *> &structelems,
                                     QMap<int, QString> &errors);
   static bool ContainsUnbounded(const ShaderConstant &structType,
                                 rdcpair<rdcstr, rdcstr> *found = NULL);
 
   static QString DeclareStruct(Packing::Rules pack, ResourceId shader,
-                               QList<QString> &declaredStructs,
+                               QMap<QString, bool> &declaredStructs,
                                QMap<ShaderConstant, QString> &anonStructs, const QString &name,
                                const rdcarray<ShaderConstant> &members, uint32_t requiredByteStride,
                                QString innerSkippedPrefixString);
@@ -226,10 +226,11 @@ private:
   static uint32_t GetVarSizeAndTrail(const ShaderConstant &var);
 
   static void EstimatePackingRules(Packing::Rules &pack, ResourceId shader,
-                                   const ShaderConstant &constant, uint32_t knownVecAlignment);
+                                   const ShaderConstant &constant,
+                                   QSet<uint32_t> &pointerTypesProcessed, uint32_t knownVecAlignment);
   static void EstimatePackingRules(Packing::Rules &pack, ResourceId shader,
                                    const rdcarray<ShaderConstant> &members,
-                                   uint32_t knownVecAlignment);
+                                   QSet<uint32_t> &pointerTypesProcessed, uint32_t knownVecAlignment);
   static QString DeclarePacking(Packing::Rules pack);
 
 public:
@@ -255,8 +256,6 @@ public:
 QVariantList GetVariants(ResourceFormat format, const ShaderConstant &var, const byte *&data,
                          const byte *end);
 ResourceFormat GetInterpretedResourceFormat(const ShaderConstant &elem);
-void SetInterpretedResourceFormat(ShaderConstant &elem, ResourceFormatType interpretType,
-                                  CompType interpretCompType);
 ShaderVariable InterpretShaderVar(const ShaderConstant &elem, const byte *data, const byte *end);
 
 QString TypeString(const ShaderVariable &v, const ShaderConstant &c = ShaderConstant());
@@ -292,6 +291,8 @@ public:
   static uint32_t GetTypeID(ResourceId shader, uint32_t pointerTypeId);
   static uint32_t GetTypeID(PointerVal val) { return GetTypeID(val.shader, val.pointerTypeID); }
   static uint32_t GetTypeID(const ShaderConstantType &structDef);
+  static QList<uint32_t> ResolveTypeIDsForPointerCycle(
+      QList<QPair<ShaderConstantType *, uint32_t>> structTypes);
 
   static const ShaderConstantType &GetTypeDescriptor(uint32_t typeId);
   static const ShaderConstantType &GetTypeDescriptor(ResourceId shader, uint32_t pointerTypeId)

@@ -24,6 +24,61 @@
 
 #include "vk_test.h"
 
+std::string simple_mesh = R"EOSHADER(
+
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(triangles, max_vertices = 6, max_primitives = 2) out;
+layout(location = 0) out vec4 outColor[];
+
+void main()
+{
+  uint triangleCount = 2;
+  uint vertexCount = 3 * triangleCount;
+
+  SetMeshOutputsEXT(vertexCount, triangleCount);
+
+  for (uint i = 0; i < 2; ++i)
+  {
+    uint vertIdx = i * 3;
+    uint tri = i + 2 * gl_WorkGroupID.x;
+    vec4 org = vec4(-0.65, +0.65, 0.0, 0.0) + vec4(0.42, 0.0, 0.0, 0.0) * tri;
+
+    uint vert0 = 0 + vertIdx;
+    uint vert1 = 1 + vertIdx;
+    uint vert2 = 2 + vertIdx;
+
+    gl_MeshVerticesEXT[vert0].gl_Position = vec4(-0.2, -0.2, 0.0, 1.0) + org;
+    gl_MeshVerticesEXT[vert1].gl_Position = vec4(0.0, 0.2, 0.0, 1.0) + org;
+    gl_MeshVerticesEXT[vert2].gl_Position = vec4(0.2, -0.2, 0.0, 1.0) + org;
+
+    outColor[vert0] = vec4(1.0, 0.0, 0.0, 1.0);
+    outColor[vert1] = vec4(1.0, 0.0, 0.0, 1.0);
+    outColor[vert2] = vec4(1.0, 0.0, 0.0, 1.0);
+
+    gl_PrimitiveTriangleIndicesEXT[i] =  uvec3(vert0, vert1, vert2);
+  }
+}
+
+)EOSHADER";
+
+std::string simple_mesh_pixel = R"EOSHADER(
+
+#version 460
+
+layout(location = 0) in vec4 inColor;
+layout(location = 0) out vec4 outColor;
+
+void main()
+{
+  outColor = inColor;
+}
+
+)EOSHADER";
+
 std::string pixel = R"EOSHADER(
 
 #version 460 core
@@ -119,6 +174,29 @@ void main()
     indirectData.data[8].x = 0;
     indirectData.data[9] = uvec4(3, 1, 9, 0); // draw indices 9..11
     indirectData.data[10].x = 0;
+
+    // Counts
+    indirectData.data[10].x = 3;
+    indirectData.data[10].y = 2;
+    indirectData.data[10].z = 0;
+    indirectData.data[10].w = 0;
+
+    // DrawMeshIndirect
+    indirectData.data[11].x = 9;
+    indirectData.data[11].y = 7;
+    indirectData.data[11].z = 5;
+    indirectData.data[11].w = 0;
+
+    indirectData.data[12].x = 2;
+    indirectData.data[12].y = 1;
+    indirectData.data[12].z = 1;
+    indirectData.data[12].w = 0;
+
+    // DrawMeshIndirect Counts
+    indirectData.data[13].x = 1;
+    indirectData.data[13].y = 0;
+    indirectData.data[13].z = 0;
+    indirectData.data[13].w = 0;
   }
 }
 
@@ -144,6 +222,10 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT,
   };
 
+  VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeats = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
+  };
+
   float sqSize;
   VkViewport viewPort;
 
@@ -166,23 +248,52 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
 
     optDevExts.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
     optDevExts.push_back(VK_EXT_NESTED_COMMAND_BUFFER_EXTENSION_NAME);
+    optDevExts.push_back(VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME);
+    optDevExts.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
 
     VulkanGraphicsTest::Prepare(argc, argv);
 
     if(!Avail.empty())
       return;
 
-    static VkPhysicalDeviceBufferDeviceAddressFeaturesKHR bufaddrFeatures = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR,
-    };
+    if(devVersion >= VK_MAKE_VERSION(1, 2, 0))
+    {
+      static VkPhysicalDeviceVulkan12Features feats = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+      };
 
-    getPhysFeatures2(&bufaddrFeatures);
+      VkPhysicalDeviceVulkan12Features vk12avail = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+      };
 
-    if(!bufaddrFeatures.bufferDeviceAddress)
-      Avail = "feature 'bufferDeviceAddress' not available";
+      getPhysFeatures2(&vk12avail);
 
-    bufaddrFeatures.pNext = (void *)devInfoNext;
-    devInfoNext = &bufaddrFeatures;
+      if(vk12avail.drawIndirectCount)
+        feats.drawIndirectCount = VK_TRUE;
+
+      if(vk12avail.bufferDeviceAddress)
+        feats.bufferDeviceAddress = VK_TRUE;
+
+      feats.pNext = (void *)devInfoNext;
+      devInfoNext = &feats;
+
+      if(!vk12avail.bufferDeviceAddress)
+        Avail = "feature 'bufferDeviceAddress' not available";
+    }
+    else
+    {
+      static VkPhysicalDeviceBufferDeviceAddressFeaturesKHR bufaddrFeatures = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR,
+      };
+
+      getPhysFeatures2(&bufaddrFeatures);
+
+      if(!bufaddrFeatures.bufferDeviceAddress)
+        Avail = "feature 'bufferDeviceAddress' not available";
+
+      bufaddrFeatures.pNext = (void *)devInfoNext;
+      devInfoNext = &bufaddrFeatures;
+    }
 
     if(hasExt(VK_EXT_NESTED_COMMAND_BUFFER_EXTENSION_NAME))
     {
@@ -202,6 +313,18 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
       {
         descBufFeats.pNext = (void *)devInfoNext;
         devInfoNext = &descBufFeats;
+      }
+    }
+
+    if(hasExt(VK_EXT_MESH_SHADER_EXTENSION_NAME))
+    {
+      getPhysFeatures2(&meshShaderFeats);
+      if(meshShaderFeats.meshShader)
+      {
+        meshShaderFeats.multiviewMeshShader = VK_FALSE;
+        meshShaderFeats.primitiveFragmentShadingRateMeshShader = VK_FALSE;
+        meshShaderFeats.pNext = (void *)devInfoNext;
+        devInfoNext = &meshShaderFeats;
       }
     }
   }
@@ -258,13 +381,13 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
     vkGetDescriptorEXT(device, &get, DescSize(type), dst);
   }
 
-  void BufferUpload(AllocatedBuffer & buffer, void *data, size_t countBytes)
+  void BufferUpload(AllocatedBuffer & buffer, void *data, size_t countBytes, size_t offset = 0)
   {
     VmaAllocationInfo alloc_info;
     vmaGetAllocationInfo(buffer.allocator, buffer.alloc, &alloc_info);
     uint16_t *dst = NULL;
     vkMapMemory(device, alloc_info.deviceMemory, alloc_info.offset, VK_WHOLE_SIZE, 0, (void **)&dst);
-    memcpy(dst, data, countBytes);
+    memcpy(dst + offset, data, countBytes);
     vkUnmapMemory(device, alloc_info.deviceMemory);
   }
 
@@ -310,10 +433,32 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
       getPhysProperties2(&descBufProps);
     }
 
+    bool meshShader = hasExt(VK_EXT_MESH_SHADER_EXTENSION_NAME);
+    if(meshShader)
+    {
+      getPhysFeatures2(&meshShaderFeats);
+      if(!meshShaderFeats.meshShader)
+        meshShader = false;
+    }
+
+    bool draw_indirect_count = false;
+    if(devVersion >= VK_MAKE_VERSION(1, 2, 0))
+    {
+      draw_indirect_count = true;
+    }
+    else
+    {
+      draw_indirect_count = hasExt(VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME);
+    }
+
+    if(draw_indirect_count)
+      TEST_LOG("Running tests with draw indirect count");
     if(nestedSecondaries)
       TEST_LOG("Running tests with nested secondaries");
     if(descBuffer)
       TEST_LOG("Running tests with descriptor buffer");
+    if(meshShader)
+      TEST_LOG("Running tests with mesh shaders");
 
     vkh::RenderPassCreator renderPassCreateInfo;
     renderPassCreateInfo.attachments.push_back(vkh::AttachmentDescription(
@@ -388,6 +533,29 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
       setName(descBuffPipe, "Descriptor Buffer Pipeline");
     }
 
+    VkPipelineLayout meshShaderLayout = createPipelineLayout(
+        vkh::PipelineLayoutCreateInfo({}, {vkh::PushConstantRange(VK_SHADER_STAGE_ALL, 0, 8)}));
+
+    VkPipeline meshShaderPipe = VK_NULL_HANDLE;
+    if(meshShader)
+    {
+      vkh::GraphicsPipelineCreateInfo meshShaderPipeCreateInfo;
+
+      meshShaderPipeCreateInfo.layout = meshShaderLayout;
+      meshShaderPipeCreateInfo.renderPass = mainWindow->rp;
+      meshShaderPipeCreateInfo.stages = {
+          CompileShaderModule(simple_mesh, ShaderLang::glsl, ShaderStage::mesh, "main", {},
+                              SPIRVTarget::vulkan12),
+          CompileShaderModule(simple_mesh_pixel, ShaderLang::glsl, ShaderStage::frag, "main"),
+      };
+
+      VkGraphicsPipelineCreateInfo *vkMeshShaderPipeCreateInfo = meshShaderPipeCreateInfo;
+      vkMeshShaderPipeCreateInfo->pVertexInputState = NULL;
+      vkMeshShaderPipeCreateInfo->pInputAssemblyState = NULL;
+
+      meshShaderPipe = createGraphicsPipeline(vkMeshShaderPipeCreateInfo);
+    }
+
     VkDescriptorSetLayout compDescSetLayout =
         createDescriptorSetLayout(vkh::DescriptorSetLayoutCreateInfo({
             {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT},
@@ -407,6 +575,8 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
     VkDescriptorSetLayout compWriteDataSetLayout =
         createDescriptorSetLayout(vkh::DescriptorSetLayoutCreateInfo({
             {0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT},
+            {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT},
+            {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT},
         }));
     setName(compWriteDataSetLayout, "Compute WriteData Descriptor Set Layout");
 
@@ -536,28 +706,54 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
         this,
         vkh::BufferCreateInfo(indirectDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT),
-        VmaAllocationCreateInfo({0, VMA_MEMORY_USAGE_GPU_ONLY}));
+        VmaAllocationCreateInfo({0, VMA_MEMORY_USAGE_CPU_TO_GPU}));
     setName(indirectData.buffer, "Indirect Data");
+    BufferUpload(indirectData, (void *)indices, sizeof(indices), 1024);
+
+    AllocatedBuffer barrierBuffer(this,
+                                  vkh::BufferCreateInfo(1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT),
+                                  VmaAllocationCreateInfo({0, VMA_MEMORY_USAGE_GPU_ONLY}));
+    setName(barrierBuffer.buffer, "Barrier Buffer");
+
+    AllocatedBuffer barrier2Buffer(this,
+                                   vkh::BufferCreateInfo(1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT),
+                                   VmaAllocationCreateInfo({0, VMA_MEMORY_USAGE_GPU_ONLY}));
+    setName(barrier2Buffer.buffer, "Barrier2 Buffer");
 
     vkh::updateDescriptorSets(
-        device, {
-                    vkh::WriteDescriptorSet(compWriteDataDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                                            {vkh::DescriptorBufferInfo(indirectData.buffer)}),
-                });
+        device,
+        {
+            vkh::WriteDescriptorSet(compWriteDataDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                    {vkh::DescriptorBufferInfo(indirectData.buffer)}),
+            vkh::WriteDescriptorSet(compWriteDataDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                    {vkh::DescriptorBufferInfo(barrierBuffer.buffer)}),
+            vkh::WriteDescriptorSet(compWriteDataDescSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                    {vkh::DescriptorBufferInfo(barrier2Buffer.buffer)}),
+        });
 
     VkDescriptorBufferBindingInfoEXT descBuffBind = {};
     AllocatedBuffer descBuf;
+    AllocatedBuffer descBackupBuf;
     if(descBuffer)
     {
       descBuf = AllocatedBuffer(
           this,
           vkh::BufferCreateInfo(0x1000, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR |
                                             VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
-                                            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT),
+                                            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT |
+                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT),
           VmaAllocationCreateInfo({0, VMA_MEMORY_USAGE_CPU_TO_GPU}));
-
       setName(descBuf.buffer, "Descriptor Buffer");
+      descBackupBuf =
+          AllocatedBuffer(this,
+                          vkh::BufferCreateInfo(0x1000, VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT),
+                          VmaAllocationCreateInfo({0, VMA_MEMORY_USAGE_GPU_ONLY}));
+
+      setName(descBackupBuf.buffer, "Descriptor Backup Buffer");
       VmaAllocationInfo alloc_info;
       vmaGetAllocationInfo(descBuf.allocator, descBuf.alloc, &alloc_info);
       byte *descBufMem = NULL;
@@ -593,41 +789,88 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
                                             {vkh::DescriptorBufferInfo(compBufOut.buffer)}),
                 });
 
-    sqSize = float(screenHeight) / 4.0f;
+    sqSize = float(screenHeight) / 6.0f;
 
     using uvec4 = uint32_t[4];
+
+    VkCommandPool barrierCmdPool;
+    CHECK_VKR(vkCreateCommandPool(
+        device,
+        vkh::CommandPoolCreateInfo(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, queueFamilyIndex),
+        NULL, &barrierCmdPool));
+    setName(barrierCmdPool, "BarrierCommand Pool");
+
+    VkCommandBuffer barrierCmd = VK_NULL_HANDLE;
+    CHECK_VKR(vkAllocateCommandBuffers(device, vkh::CommandBufferAllocateInfo(barrierCmdPool, 1),
+                                       &barrierCmd));
+    setName(barrierCmd, "Barrier Command Buffer");
+    vkBeginCommandBuffer(barrierCmd,
+                         vkh::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT));
+    setMarker(barrierCmd, "Multiple Command Buffer Submits");
+    vkh::cmdPipelineBarrier(
+        barrierCmd, {},
+        {vkh::BufferMemoryBarrier(VK_ACCESS_NONE, VK_ACCESS_NONE, barrierBuffer.buffer)});
+    vkEndCommandBuffer(barrierCmd);
+
+    VkFence barrerCmdSubmitFence;
+    CHECK_VKR(vkCreateFence(device, vkh::FenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT), NULL,
+                            &barrerCmdSubmitFence));
+    setName(barrerCmdSubmitFence, "Barrier Command Submit Fence");
 
     while(Running())
     {
       viewPort = {0.0f, 0.0f, sqSize, sqSize, 0.0f, 1.0f};
 
-      VkCommandBuffer secCmd = GetCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-      vkBeginCommandBuffer(
-          secCmd, vkh::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT |
+      VkCommandBuffer barrierSecCmd = GetCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+      vkBeginCommandBuffer(barrierSecCmd, vkh::CommandBufferBeginInfo(
+                                              VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+                                              vkh::CommandBufferInheritanceInfo(VK_NULL_HANDLE, 0)));
+      vkh::cmdPipelineBarrier(
+          barrierSecCmd, {},
+          {vkh::BufferMemoryBarrier(VK_ACCESS_NONE, VK_ACCESS_NONE, barrier2Buffer.buffer)});
+      vkEndCommandBuffer(barrierSecCmd);
+
+      VkCommandBuffer secCmdBuffers[3];
+      for(size_t i = 0; i < 2; i++)
+      {
+        VkCommandBuffer secCmd = GetCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+        vkBeginCommandBuffer(
+            secCmd, vkh::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT |
+                                                    VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+                                                vkh::CommandBufferInheritanceInfo(renderPass, 0)));
+
+        pushMarker(secCmd, "No Descriptor Set");
+        {
+          vkCmdSetScissor(secCmd, 0, 1, &mainWindow->scissor);
+          vkh::cmdBindVertexBuffers(secCmd, 0, {vb.buffer}, {0});
+          vkCmdBindIndexBuffer(secCmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+          vkCmdBindPipeline(secCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, noDescSetPipe);
+
+          // Vertex draw
+          setMarker(secCmd, "Vertex Draw");
+          vkCmdSetViewport(secCmd, 0, 1, &viewPort);
+          vkCmdDraw(secCmd, 3, 1, 0, 0);
+          NextTest();
+          // Indexed draw
+          setMarker(secCmd, "Indexed Draw");
+          vkCmdSetViewport(secCmd, 0, 1, &viewPort);
+          vkCmdDrawIndexed(secCmd, 3, 1, 0, 0, 0);
+          NextTest();
+        }
+        popMarker(secCmd);
+
+        vkEndCommandBuffer(secCmd);
+        secCmdBuffers[i] = secCmd;
+      }
+      {
+        VkCommandBuffer emptySecCmd = GetCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+        vkBeginCommandBuffer(emptySecCmd, vkh::CommandBufferBeginInfo(
+                                              VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT |
                                                   VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
                                               vkh::CommandBufferInheritanceInfo(renderPass, 0)));
-
-      pushMarker(secCmd, "No Descriptor Set");
-      {
-        vkCmdSetScissor(secCmd, 0, 1, &mainWindow->scissor);
-        vkh::cmdBindVertexBuffers(secCmd, 0, {vb.buffer}, {0});
-        vkCmdBindIndexBuffer(secCmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindPipeline(secCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, noDescSetPipe);
-
-        // Vertex draw
-        setMarker(secCmd, "Vertex Draw");
-        vkCmdSetViewport(secCmd, 0, 1, &viewPort);
-        vkCmdDraw(secCmd, 3, 1, 0, 0);
-        NextTest();
-        // Indexed draw
-        setMarker(secCmd, "Indexed Draw");
-        vkCmdSetViewport(secCmd, 0, 1, &viewPort);
-        vkCmdDrawIndexed(secCmd, 3, 1, 0, 0, 0);
-        NextTest();
+        vkEndCommandBuffer(emptySecCmd);
+        secCmdBuffers[2] = emptySecCmd;
       }
-      popMarker(secCmd);
-
-      vkEndCommandBuffer(secCmd);
 
       VkCommandBuffer nestedCmd = GetCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY);
       if(nestedSecondaries)
@@ -670,6 +913,10 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
                                  0, {compDescSet}, {});
       vkCmdBindPipeline(compSecCmd, VK_PIPELINE_BIND_POINT_COMPUTE, compDescSetPipe);
       vkCmdDispatch(compSecCmd, 1, 1, 1);
+      vkh::cmdPipelineBarrier(
+          compSecCmd, {},
+          {vkh::BufferMemoryBarrier(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_WRITE_BIT,
+                                    indirectData.buffer)});
       vkEndCommandBuffer(compSecCmd);
 
       VkCommandBuffer compNestedSecCmd = GetCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY);
@@ -805,7 +1052,7 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
           vkCmdBeginRenderPass(
               cmd, vkh::RenderPassBeginInfo(mainWindow->rp, mainWindow->GetFB(), mainWindow->scissor),
               VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-          vkCmdExecuteCommands(cmd, 1, &secCmd);
+          vkCmdExecuteCommands(cmd, 3, secCmdBuffers);
           vkCmdEndRenderPass(cmd);
         }
         popMarker(cmd);
@@ -871,7 +1118,17 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
           vkCmdBindIndexBuffer(cmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
           vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, descSetPipe);
 
-          setMarker(cmd, "DrawIndirect");
+          setMarker(cmd, "DrawIndirect: Zero");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndirect(cmd, indirectData.buffer, offset, 0, strideDraw);
+          NextTest();
+
+          setMarker(cmd, "DrawIndirect: Single");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndirect(cmd, indirectData.buffer, offset, 1, strideDraw);
+          NextTest();
+
+          setMarker(cmd, "DrawIndirect: Multiple");
           vkCmdSetViewport(cmd, 0, 1, &viewPort);
           vkCmdDrawIndirect(cmd, indirectData.buffer, offset, countDraws, strideDraw);
           NextTest();
@@ -884,7 +1141,17 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
           vkCmdDrawIndexedIndirect(cmd, indirectData.buffer, offset, countDrawIndexed,
                                    strideDrawIndexed);
           NextTest();
+
+          setMarker(cmd, "DrawIndexedIndirect : Zero");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndexedIndirect(cmd, indirectData.buffer, offset, 0, strideDrawIndexed);
+          NextTest();
+
           vkCmdEndRenderPass(cmd);
+          vkh::cmdPipelineBarrier(
+              cmd, {},
+              {vkh::BufferMemoryBarrier(VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                                        VK_ACCESS_INDIRECT_COMMAND_READ_BIT, indirectData.buffer)});
         }
         popMarker(cmd);
 
@@ -919,7 +1186,21 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
             mode = 1;
             vkCmdPushConstants(indirectCompSecCmd, compWriteDataPipeLayout,
                                VK_SHADER_STAGE_COMPUTE_BIT, 0, 4, &mode);
+
+            vkh::cmdPipelineBarrier(
+                indirectCompSecCmd, {},
+                {vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT,
+                                          VK_ACCESS_TRANSFER_WRITE_BIT, indirectData.buffer)});
+
             setMarker(indirectCompSecCmd, "DispatchIndirect");
+            vkCmdDispatchIndirect(indirectCompSecCmd, indirectData.buffer, 0);
+            vkCmdDispatchIndirect(indirectCompSecCmd, indirectData.buffer, 0);
+
+            vkh::cmdPipelineBarrier(
+                indirectCompSecCmd, {},
+                {vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT,
+                                          VK_ACCESS_TRANSFER_WRITE_BIT, indirectData.buffer)});
+
             vkCmdDispatchIndirect(indirectCompSecCmd, indirectData.buffer, 0);
 
             vkh::cmdPipelineBarrier(indirectCompSecCmd, {},
@@ -954,11 +1235,18 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
             vkCmdBindIndexBuffer(indirectDrawSecCmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindPipeline(indirectDrawSecCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, descSetPipe);
 
-            setMarker(indirectDrawSecCmd, "DrawIndirect");
+            setMarker(indirectDrawSecCmd, "DrawIndirect: Single");
+
+            vkCmdSetViewport(indirectDrawSecCmd, 0, 1, &viewPort);
+            vkCmdDrawIndirect(indirectDrawSecCmd, indirectData.buffer, offset, 1, strideDraw);
+            NextTest();
+
+            setMarker(indirectDrawSecCmd, "DrawIndirect: Multiple");
             vkCmdSetViewport(indirectDrawSecCmd, 0, 1, &viewPort);
             vkCmdDrawIndirect(indirectDrawSecCmd, indirectData.buffer, offset, countDraws,
                               strideDraw);
             NextTest();
+
             offset += countDraws * strideDraw;
 
             uint32_t countDrawIndexed = 3;
@@ -978,10 +1266,121 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
       }
       popMarker(cmd);
 
+      pushMarker(cmd, "Loose Events After Indirect Draws");
+      {
+        size_t offset = sizeof(uvec4);
+        uint32_t countDraw = 4;
+        uint32_t strideDraw = sizeof(uvec4);
+
+        vkCmdBeginRenderPass(
+            cmd, vkh::RenderPassBeginInfo(mainWindow->rp, mainWindow->GetFB(), mainWindow->scissor),
+            VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdSetScissor(cmd, 0, 1, &mainWindow->scissor);
+        vkh::cmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, descSetPipeLayout, 0,
+                                   {descSet}, {});
+        vkh::cmdBindVertexBuffers(cmd, 0, {vb.buffer}, {0});
+        vkCmdBindIndexBuffer(cmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, descSetPipe);
+
+        setMarker(cmd, "DrawIndirect: Single");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        size_t drawIndirectOffset = offset;
+        vkCmdDrawIndirect(cmd, indirectData.buffer, drawIndirectOffset, 1, strideDraw);
+        NextTest();
+
+        setMarker(cmd, "DrawIndirect: Multiple");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        size_t drawIndexedIndirectOffset = offset;
+        vkCmdDrawIndirect(cmd, indirectData.buffer, drawIndexedIndirectOffset, countDraw, strideDraw);
+        NextTest();
+        offset += countDraw * strideDraw;
+
+        uint32_t countDrawIndexed = 3;
+        uint32_t strideDrawIndexed = 2 * sizeof(uvec4);
+        setMarker(cmd, "DrawIndexedIndirect");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawIndexedIndirect(cmd, indirectData.buffer, offset, countDrawIndexed,
+                                 strideDrawIndexed);
+        NextTest();
+
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdBindIndexBuffer(cmd, indirectData.buffer, 1024, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexedIndirect(cmd, indirectData.buffer, offset, 1, strideDrawIndexed);
+        vkCmdBindIndexBuffer(cmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+        NextTest();
+        offset += countDrawIndexed * strideDrawIndexed;
+
+        if(draw_indirect_count)
+        {
+          pushMarker(cmd, "Draw Indirect Count");
+
+          setMarker(cmd, "DrawIndirectCount(0:0)");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          size_t countOffset = 10 * sizeof(uvec4);
+          vkCmdDrawIndirectCountKHR(cmd, indirectData.buffer, drawIndirectOffset,
+                                    indirectData.buffer, countOffset, 0, strideDraw);
+          NextTest();
+
+          setMarker(cmd, "DrawIndexedIndirectCount(0:0)");
+          size_t indexedCountOffset = countOffset + sizeof(uint32_t);
+          vkCmdDrawIndexedIndirectCountKHR(cmd, indirectData.buffer, drawIndexedIndirectOffset,
+                                           indirectData.buffer, countOffset, 0, strideDrawIndexed);
+          NextTest();
+
+          size_t countZeroOffset = indexedCountOffset + sizeof(uint32_t);
+          setMarker(cmd, "DrawIndirectCount(10:0)");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndirectCountKHR(cmd, indirectData.buffer, drawIndirectOffset,
+                                    indirectData.buffer, countZeroOffset, 10, strideDraw);
+          NextTest();
+
+          setMarker(cmd, "DrawIndexedIndirectCount(10:0)");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndexedIndirectCountKHR(cmd, indirectData.buffer, drawIndexedIndirectOffset,
+                                           indirectData.buffer, countZeroOffset, 10,
+                                           strideDrawIndexed);
+          NextTest();
+
+          setMarker(cmd, "DrawIndirectCount(10:N)");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndirectCountKHR(cmd, indirectData.buffer, drawIndirectOffset,
+                                    indirectData.buffer, countOffset, 10, strideDraw);
+          NextTest();
+
+          setMarker(cmd, "DrawIndexedIndirectCount(10:N)");
+          vkCmdSetViewport(cmd, 0, 1, &viewPort);
+          vkCmdDrawIndexedIndirectCountKHR(cmd, indirectData.buffer, drawIndexedIndirectOffset,
+                                           indirectData.buffer, indexedCountOffset, 10,
+                                           strideDrawIndexed);
+          NextTest();
+          popMarker(cmd);
+        }
+
+        vkCmdEndRenderPass(cmd);
+      }
+      popMarker(cmd);
+
+      vkh::cmdPipelineBarrier(
+          cmd, {},
+          {vkh::BufferMemoryBarrier(VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                                    VK_ACCESS_INDIRECT_COMMAND_READ_BIT, indirectData.buffer)});
+
+      vkEndCommandBuffer(cmd);
+
+      Submit(0, 3, {cmd});
+
+      cmd = GetCommandBuffer();
+
+      vkBeginCommandBuffer(cmd, vkh::CommandBufferBeginInfo());
+
       // Nested Secondary Command Buffer
       if(nestedSecondaries)
       {
         pushMarker(cmd, "Nested Secondary Command Buffer");
+        vkCmdSetScissor(cmd, 0, 1, &mainWindow->scissor);
+        vkh::cmdBindVertexBuffers(cmd, 0, {vb.buffer}, {0});
+        vkCmdBindIndexBuffer(cmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
 
         setMarker(cmd, "Draw");
         vkCmdBeginRenderPass(
@@ -996,10 +1395,56 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
         popMarker(cmd);
       }
 
+      VkCommandBuffer backupDescBufCmd = VK_NULL_HANDLE;
+      VkCommandBuffer restoreDescBufCmd = VK_NULL_HANDLE;
+      std::vector<VkCommandBuffer> cmds;
+
       // Descriptor Buffer
       if(descBuffer)
       {
+        VkBufferCopy copyRegion;
+        copyRegion.srcOffset = 0;
+        copyRegion.dstOffset = 0;
+        copyRegion.size = 0x1000;
+
+        backupDescBufCmd = GetCommandBuffer();
+        vkBeginCommandBuffer(backupDescBufCmd, vkh::CommandBufferBeginInfo());
+        vkh::cmdPipelineBarrier(
+            backupDescBufCmd, {},
+            {
+                vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                                         descBuf.buffer),
+                vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                         descBackupBuf.buffer),
+            });
+        vkCmdCopyBuffer(backupDescBufCmd, descBuf.buffer, descBackupBuf.buffer, 1, &copyRegion);
+        vkh::cmdPipelineBarrier(
+            backupDescBufCmd, {},
+            {
+                vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                         descBuf.buffer),
+            });
+        vkCmdFillBuffer(backupDescBufCmd, descBuf.buffer, 0, 0x1000, 0);
+        vkEndCommandBuffer(backupDescBufCmd);
+
+        restoreDescBufCmd = GetCommandBuffer();
+        vkBeginCommandBuffer(restoreDescBufCmd, vkh::CommandBufferBeginInfo());
+        vkh::cmdPipelineBarrier(
+            restoreDescBufCmd, {},
+            {
+                vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                                         descBackupBuf.buffer),
+                vkh::BufferMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                         descBuf.buffer),
+            });
+        vkCmdCopyBuffer(restoreDescBufCmd, descBackupBuf.buffer, descBuf.buffer, 1, &copyRegion);
+        vkEndCommandBuffer(restoreDescBufCmd);
+
         pushMarker(cmd, "Descriptor Buffer");
+        vkCmdSetScissor(cmd, 0, 1, &mainWindow->scissor);
+        vkh::cmdBindVertexBuffers(cmd, 0, {vb.buffer}, {0});
+        vkCmdBindIndexBuffer(cmd, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+
         vkCmdBindDescriptorBuffersEXT(cmd, 1, &descBuffBind);
         uint32_t descBuffSetIndex = 0;
         VkDeviceSize descBuffSetOffset = 0;
@@ -1031,16 +1476,106 @@ RD_TEST(VK_Resource_Usage, VulkanGraphicsTest)
         vkCmdDispatch(cmd, 1, 1, 1);
 
         popMarker(cmd);
+        cmds.push_back(backupDescBufCmd);
+        cmds.push_back(restoreDescBufCmd);
+      }
+
+      // Mesh Shaders
+      if(meshShader)
+      {
+        pushMarker(cmd, "Mesh Shaders");
+        vkCmdSetScissor(cmd, 0, 1, &mainWindow->scissor);
+        vkCmdBeginRenderPass(
+            cmd, vkh::RenderPassBeginInfo(mainWindow->rp, mainWindow->GetFB(), mainWindow->scissor),
+            VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshShaderPipe);
+
+        setMarker(cmd, "Draw Mesh");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksEXT(cmd, 3, 1, 1);
+        NextTest();
+
+        setMarker(cmd, "Draw Mesh Indirect");
+        uint32_t stride = sizeof(uvec4);
+        size_t drawOffset = stride * 11;
+
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksIndirectEXT(cmd, indirectData.buffer, drawOffset, 2, stride);
+        NextTest();
+
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksIndirectEXT(cmd, indirectData.buffer, drawOffset, 0, stride);
+        NextTest();
+
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksIndirectEXT(cmd, indirectData.buffer, drawOffset, 1, stride);
+        NextTest();
+
+        size_t countOffset = stride * 13;
+        size_t countZeroOffset = countOffset + sizeof(uint32_t);
+
+        setMarker(cmd, "Draw Mesh Indirect Count(20:1)");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksIndirectCountEXT(cmd, indirectData.buffer, drawOffset,
+                                           indirectData.buffer, countOffset, 20, stride);
+        NextTest();
+
+        setMarker(cmd, "Draw Mesh Indirect Count(0:0)");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksIndirectCountEXT(cmd, indirectData.buffer, drawOffset,
+                                           indirectData.buffer, countOffset, 0, stride);
+        NextTest();
+
+        setMarker(cmd, "Draw Mesh Indirect Count(10:0)");
+        vkCmdSetViewport(cmd, 0, 1, &viewPort);
+        vkCmdDrawMeshTasksIndirectCountEXT(cmd, indirectData.buffer, drawOffset,
+                                           indirectData.buffer, countZeroOffset, 10, stride);
+        NextTest();
+
+        vkCmdEndRenderPass(cmd);
+        popMarker(cmd);
       }
 
       FinishUsingBackbuffer(cmd, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL);
 
       vkEndCommandBuffer(cmd);
+      cmds.push_back(cmd);
 
-      Submit(0, 1, {cmd});
+      Submit(1, 3, cmds);
+
+      std::vector<VkCommandBuffer> cmds2;
+      cmds2.push_back(barrierCmd);
+      VkSubmitInfo submit = vkh::SubmitInfo(cmds2);
+      for(uint32_t i = 0; i < 10; ++i)
+      {
+        vkWaitForFences(device, 1, &barrerCmdSubmitFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &barrerCmdSubmitFence);
+        CHECK_VKR(vkQueueSubmit(queue, 1, &submit, barrerCmdSubmitFence));
+        vkWaitForFences(device, 1, &barrerCmdSubmitFence, VK_TRUE, UINT64_MAX);
+      }
+
+      cmd = GetCommandBuffer();
+
+      vkBeginCommandBuffer(cmd, vkh::CommandBufferBeginInfo());
+
+      pushMarker(cmd, "Multiple Secondary Command Buffer Executes");
+      {
+        vkCmdExecuteCommands(cmd, 1, &barrierSecCmd);
+        vkCmdExecuteCommands(cmd, 1, &barrierSecCmd);
+        vkCmdExecuteCommands(cmd, 1, &barrierSecCmd);
+        vkCmdExecuteCommands(cmd, 1, &barrierSecCmd);
+        popMarker(cmd);
+      }
+
+      vkEndCommandBuffer(cmd);
+
+      Submit(2, 3, {cmd});
 
       Present();
     }
+
+    vkDestroyFence(device, barrerCmdSubmitFence, NULL);
+    vkDestroyCommandPool(device, barrierCmdPool, NULL);
 
     return 0;
   }

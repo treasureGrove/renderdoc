@@ -156,7 +156,8 @@ public:
                                  const ShaderVariable &compare, GatherChannel gatherChannel,
                                  const rdcspv::ImageOperandsAndParamDatas &operands,
                                  ShaderVariable &output, bool &hasResult) = 0;
-  virtual bool QueueCalculateMathOp(GLSLstd450 op, const rdcarray<ShaderVariable> &params) = 0;
+  virtual bool QueueCalculateMathOp(Op opcode, GLSLstd450 op,
+                                    const rdcarray<ShaderVariable> &params) = 0;
   virtual bool GetQueuedResults(rdcarray<ShaderVariable *> &mathOpResults,
                                 rdcarray<ShaderVariable *> &sampleGatherResults) = 0;
   virtual bool QueuedOpsHasSpace() = 0;
@@ -182,7 +183,8 @@ struct ResultDataBase
   uint32_t helperBallot[4];
 
   uint32_t numSubgroups;    // may be packed oddly so we don't assume we can calculate
-  uint32_t padding[3];
+  uint32_t shadRate;
+  uint32_t padding[2];
 
   // LaneData lanes[N]
   // each LaneData is prefixed by the subgroup struct below if needed, and then the stage struct unconditionally
@@ -285,7 +287,8 @@ private:
 struct GpuMathOperation
 {
   uint32_t workgroupIndex;
-  GLSLstd450 op;
+  Op opcode;
+  GLSLstd450 glslop;
   rdcarray<ShaderVariable> paramVars;
   ShaderVariable *result;
 };
@@ -419,7 +422,7 @@ struct ThreadState
     Stepped,
   };
 
-  void QueueMathOp(GLSLstd450 op, const rdcarray<ShaderVariable> &paramVars,
+  void QueueMathOp(Op opcode, GLSLstd450 op, const rdcarray<ShaderVariable> &paramVars,
                    const ShaderVariable &result);
   void QueueSampleGather(Op opcode, DebugAPIWrapper::TextureType texType,
                          const ShaderBindIndex &imageBind, const ShaderBindIndex &samplerBind,

@@ -89,6 +89,9 @@ Rasterizer
 .. autoclass:: renderdoc.CullMode
   :members:
 
+.. autoclass:: renderdoc.DepthBiasMode
+  :members:
+
 .. autoclass:: renderdoc.FillMode
   :members:
 
@@ -101,9 +104,15 @@ Rasterizer
 .. autoclass:: renderdoc.ShadingRateCombiner
   :members:
 
+.. autoclass:: renderdoc.RasterState
+  :members:
 
-Stencil
--------
+
+Depth and Stencil
+-----------------
+
+.. autoclass:: renderdoc.DepthTestState
+  :members:
 
 .. autoclass:: renderdoc.StencilFace
   :members:

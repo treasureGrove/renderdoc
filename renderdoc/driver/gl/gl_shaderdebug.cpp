@@ -1276,11 +1276,14 @@ public:
     return true;
   }
 
-  virtual bool QueueCalculateMathOp(rdcspv::GLSLstd450 op,
+  virtual bool QueueCalculateMathOp(rdcspv::Op opcode, rdcspv::GLSLstd450 glslop,
                                     const rdcarray<ShaderVariable> &params) override
   {
     CHECK_DEVICE_THREAD();
     RDCASSERT(params.size() <= 3, params.size());
+
+    // only support GLSL std450 ops
+    RDCASSERT(opcode == rdcspv::Op::ExtInst && glslop != rdcspv::GLSLstd450::Invalid, opcode, glslop);
 
     RDCASSERTEQUAL(params[0].type, VarType::Float);
 
@@ -1363,7 +1366,7 @@ public:
     }
 
     // push the operation afterwards
-    GL.glUniform1i(GL.glGetUniformLocation(mathProg, "op"), (int32_t)op);
+    GL.glUniform1i(GL.glGetUniformLocation(mathProg, "op"), (int32_t)glslop);
 
     GL.glDispatchCompute(1, 1, 1);
 
@@ -1927,13 +1930,25 @@ static bool DeclareSignatureElement(const ShaderReflection *refl, size_t i, rdcs
   if(name.beginsWith("gl_"))
     name.insert(0, '_');
 
-  char prefix = (sig.varType == VarType::Float)  ? ' '
-                : (sig.varType == VarType::UInt) ? 'u'
-                : (sig.varType == VarType::SInt) ? 'i'
-                                                 : 'x';
+  VarType varType = sig.varType;
+
+  // bool in/out variables are not allowed in GLSL but these two builtins may come back as bool from
+  // SPIR-V reflection (GL reflection will type them as ints). Ensure this matches the uint-coerced
+  // value in CreateInputFetcher()
+  if(varType == VarType::Bool)
+  {
+    RDCASSERT(sig.systemValue == ShaderBuiltin::IsFrontFace ||
+              sig.systemValue == ShaderBuiltin::IsHelper);
+    varType = VarType::UInt;
+  }
+
+  char prefix = (varType == VarType::Float)  ? ' '
+                : (varType == VarType::UInt) ? 'u'
+                : (varType == VarType::SInt) ? 'i'
+                                             : 'x';
   if(sig.compCount == 1)
   {
-    sigDecl += ToStr(sig.varType);
+    sigDecl += ToStr(varType);
   }
   else
   {

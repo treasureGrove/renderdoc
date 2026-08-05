@@ -121,6 +121,45 @@ uint32_t PointerTypeRegistry::GetTypeID(const ShaderConstantType &structDef)
   return id;
 }
 
+static void UpdatePendingPointerTypes(ShaderConstantType &constType, QMap<uint32_t, uint32_t> remap)
+{
+  if(remap.contains(constType.pointerTypeID))
+    constType.pointerTypeID = remap[constType.pointerTypeID];
+
+  for(ShaderConstant &m : constType.members)
+    UpdatePendingPointerTypes(m.type, remap);
+}
+
+QList<uint32_t> PointerTypeRegistry::ResolveTypeIDsForPointerCycle(
+    QList<QPair<ShaderConstantType *, uint32_t>> structTypes)
+{
+  QList<uint32_t> ret;
+
+  // we don't attempt to deduplicate when declaring pointer cycles, we just allocate new types. This
+  // leads to a "leak" but it's expected to be small, rare, and limited in number
+  uint32_t base = (uint32_t)typeDescriptions.size();
+
+  QMap<uint32_t, uint32_t> remap;
+
+  typeDescriptions.reserve(base + structTypes.size());
+  for(int i = 0; i < structTypes.count(); i++)
+  {
+    uint32_t id = TypeIDBit | (uint32_t)typeDescriptions.size();
+
+    typeDescriptions.push_back(*structTypes[i].first);
+    typeMapping[qMakePair(ResourceId(), id)] = id;
+
+    remap[structTypes[i].second] = id;
+
+    ret.push_back(id);
+  }
+
+  for(int i = 0; i < structTypes.count(); i++)
+    UpdatePendingPointerTypes(typeDescriptions[base + i], remap);
+
+  return ret;
+}
+
 const ShaderConstantType &PointerTypeRegistry::GetTypeDescriptor(uint32_t typeId)
 {
   return typeDescriptions[typeId & ~TypeIDBit];
@@ -3109,11 +3148,11 @@ bool RunProcessAsAdmin(const QString &fullExecutablePath, const QStringList &par
   };
 
   // if none of the graphical options, then look for sudo and either
-  const QString termEmulator[] = {
-      lit("x-terminal-emulator"),
-      lit("gnome-terminal"),
-      lit("konsole"),
-      lit("xterm"),
+  const QPair<QString, QString> termEmulator[] = {
+      qMakePair(lit("x-terminal-emulator"), lit("-e")),
+      qMakePair(lit("gnome-terminal"), lit("-x")),
+      qMakePair(lit("konsole"), lit("-e")),
+      qMakePair(lit("xterm"), lit("-e")),
   };
 
   for(const QString &sudo : graphicalSudo)
@@ -3162,9 +3201,9 @@ bool RunProcessAsAdmin(const QString &fullExecutablePath, const QStringList &par
     return false;
   }
 
-  for(const QString &term : termEmulator)
+  for(const QPair<QString, QString> &term : termEmulator)
   {
-    QString inPath = QStandardPaths::findExecutable(term);
+    QString inPath = QStandardPaths::findExecutable(term.first);
 
     // can't find in path
     if(inPath.isEmpty())
@@ -3174,12 +3213,12 @@ bool RunProcessAsAdmin(const QString &fullExecutablePath, const QStringList &par
 
     // run terminal sudo with emulator
     QStringList termParams;
-    termParams << lit("-e")
-               << lit("bash -c 'echo Running \"%1 %2\" as root.;echo;sudo %1 %2'")
+    termParams << term.second << lit("bash") << lit("-c")
+               << lit("echo Running \"%1 %2\" as root.;echo;sudo %1 %2")
                       .arg(fullExecutablePath)
                       .arg(params.join(QLatin1Char(' ')));
 
-    process->start(term, termParams);
+    process->start(term.first, termParams);
 
     // when the process exits, call the callback and delete
     QObject::connect(process, OverloadedSlot<int, QProcess::ExitStatus>::of(&QProcess::finished),
