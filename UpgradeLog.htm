@@ -1,0 +1,304 @@
+﻿<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+ <html xmlns:msxsl="urn:schemas-microsoft-com:xslt"><head><meta content="en-us" http-equiv="Content-Language" /><meta content="text/html; charset=utf-16" http-equiv="Content-Type" /><title _locID="ConversionReport0">
+          迁移报告
+        </title><style> 
+                    /* Body style, for the entire document */
+                    body
+                    {
+                        background: #F3F3F4;
+                        color: #1E1E1F;
+                        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                        padding: 0;
+                        margin: 0;
+                    }
+
+                    /* Header1 style, used for the main title */
+                    h1
+                    {
+                        padding: 10px 0px 10px 10px;
+                        font-size: 21pt;
+                        background-color: #E2E2E2;
+                        border-bottom: 1px #C1C1C2 solid; 
+                        color: #201F20;
+                        margin: 0;
+                        font-weight: normal;
+                    }
+
+                    /* Header2 style, used for "Overview" and other sections */
+                    h2
+                    {
+                        font-size: 18pt;
+                        font-weight: normal;
+                        padding: 15px 0 5px 0;
+                        margin: 0;
+                    }
+
+                    /* Header3 style, used for sub-sections, such as project name */
+                    h3
+                    {
+                        font-weight: normal;
+                        font-size: 15pt;
+                        margin: 0;
+                        padding: 15px 0 5px 0;
+                        background-color: transparent;
+                    }
+
+                    /* Color all hyperlinks one color */
+                    a
+                    {
+                        color: #1382CE;
+                    }
+
+                    /* Table styles */ 
+                    table
+                    {
+                        border-spacing: 0 0;
+                        border-collapse: collapse;
+                        font-size: 10pt;
+                    }
+
+                    table th
+                    {
+                        background: #E7E7E8;
+                        text-align: left;
+                        text-decoration: none;
+                        font-weight: normal;
+                        padding: 3px 6px 3px 6px;
+                    }
+
+                    table td
+                    {
+                        vertical-align: top;
+                        padding: 3px 6px 5px 5px;
+                        margin: 0px;
+                        border: 1px solid #E7E7E8;
+                        background: #F7F7F8;
+                    }
+
+                    /* Local link is a style for hyperlinks that link to file:/// content, there are lots so color them as 'normal' text until the user mouse overs */
+                    .localLink
+                    {
+                        color: #1E1E1F;
+                        background: #EEEEED;
+                        text-decoration: none;
+                    }
+
+                    .localLink:hover
+                    {
+                        color: #1382CE;
+                        background: #FFFF99;
+                        text-decoration: none;
+                    }
+
+                    /* Center text, used in the over views cells that contain message level counts */ 
+                    .textCentered
+                    {
+                        text-align: center;
+                    }
+
+                    /* The message cells in message tables should take up all avaliable space */
+                    .messageCell
+                    {
+                        width: 100%;
+                    }
+
+                    /* Padding around the content after the h1 */ 
+                    #content 
+                    {
+	                    padding: 0px 12px 12px 12px; 
+                    }
+
+                    /* The overview table expands to width, with a max width of 97% */ 
+                    #overview table
+                    {
+                        width: auto;
+                        max-width: 75%; 
+                    }
+
+                    /* The messages tables are always 97% width */
+                    #messages table
+                    {
+                        width: 97%;
+                    }
+
+                    /* All Icons */
+                    .IconSuccessEncoded, .IconInfoEncoded, .IconWarningEncoded, .IconErrorEncoded
+                    {
+                        min-width:18px;
+                        min-height:18px; 
+                        background-repeat:no-repeat;
+                        background-position:center;
+                    }
+
+                    /* Success icon encoded */
+                    .IconSuccessEncoded
+                    {
+                        /* Note: Do not delete the comment below. It is used to verify the correctness of the encoded image resource below before the product is released */
+                        /* [---XsltValidateInternal-Base64EncodedImage:IconSuccess#Begin#background-image: url(data:image/png;base64,#Separator#);#End#] */
+                        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABcElEQVR4Xq2TsUsCURzHv15g8ZJcBWlyiYYgCIWcb9DFRRwMW5TA2c0/QEFwFkxxUQdxVlBwCYWOi6IhWgQhBLHJUCkhLr/BW8S7gvrAg+N+v8/v+x68Z8MGy+XSCyABQAXgBgHGALoASkIIDWSLeLBetdHryMjd5IxQPWT4rn1c/P7+xxp72Cs9m5SZ0Bq2vPnbPFafK2zDvmNHypdC0BPkLlQhxJsCAhQoZwdZU5mwxh720qGo8MzTxTTKZDPCx2HoVzp6lz0Q9tKhyx0kGs8Ny+TkWRKk8lCROwEduhyg9l/6lunOPSfmH3NUH6uQ0KHLAe7JYvJjevm+DAMGJHToKtigE+vwvIidxLamb8IBY9e+C5LiXREkfho3TSd06HJA13/oh6T51MTsfQbHrsMynQ5dDihFjiK8JJAU9AKIWTp76dCVN7HWHrajmUEGvyF9nkbAE6gLIS7kTUyuf2gscLoJrElZo/Mvj+nPz/kLTmfnEwP3tB0AAAAASUVORK5CYII=);
+                    }
+
+                    /* Information icon encoded */
+                    .IconInfoEncoded
+                    {
+                        /* Note: Do not delete the comment below. It is used to verify the correctness of the encoded image resource below before the product is released */
+                        /* [---XsltValidateInternal-Base64EncodedImage:IconInformation#Begin#background-image: url(data:image/png;base64,#Separator#);#End#] */
+                        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABHElEQVR4Xs2TsUoDQRRF7wwoziokjZUKadInhdhukR9YP8DMX1hYW+QvdsXa/QHBbcXC7W0CamWTQnclFutceIQJwwaWNLlwm5k5d94M76mmaeCrrmsLYOocY12FcxZFUeozCqKqqgYA8uevv1H6VuPxcwlfk5N92KHBxfFeCSAxxswlYAW/Xr989x/mv9gkhtyMDhcAxgzRsp7flj8B/HF1RsMXq+NZMkopaHe7lbKxQUEIGbKsYNoGn969060hZBkQex/W8oRQwsQaW2o3Ago2SVcJUzAgY3N0lTCZZm+zPS8HB51gMmS1DEYyOz9acKO1D8JWTlafKIMxdhvlfdyT94Vv5h7P8Ky7nQzACmhvKq3zk3PjW9asz9D/1oigecsioooAAAAASUVORK5CYII=);
+                    }
+
+                    /* Warning icon encoded */
+                    .IconWarningEncoded
+                    {
+                        /* Note: Do not delete the comment below. It is used to verify the correctness of the encoded image resource below before the product is released */
+                        /* [---XsltValidateInternal-Base64EncodedImage:IconWarning#Begin#background-image: url(data:image/png;base64,#Separator#);#End#] */
+                        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAx0lEQVR4XpWSMQ7CMAxFf4xAyBMLCxMrO8dhaBcuwdCJS3RJBw7SA/QGTCxdWJgiQYWKXJWKIXHIlyw5lqr34tQgEOdcBsCOx5yZK3hCCKdYXneQkh4pEfqzLfu+wVDSyyzFoJjfz9NB+pAF+eizx2Vruts0k15mPgvS6GYvpVtQhB61IB/dk6AF6fS4Ben0uIX5odtFe8Q/eW1KvFeH4e8khT6+gm5B+t3juyDt7n0jpe+CANTd+oTUjN/U3yVaABnSUjFz/gFq44JaVSCXeQAAAABJRU5ErkJggg==);
+                    }
+
+                    /* Error icon encoded */
+                    .IconErrorEncoded
+                    {
+                        /* Note: Do not delete the comment below. It is used to verify the correctness of the encoded image resource below before the product is released */
+                        /* [---XsltValidateInternal-Base64EncodedImage:IconError#Begin#background-image: url(data:image/png;base64,#Separator#);#End#] */
+                        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABQElEQVR4XqWTvUoEQRCE6wYPZUA80AfwAQz23uCMjA7MDRQEIzPBVEyNTQUFIw00vcQTTMzuAh/AxEQQT8HF/3G/oGGnEUGuoNnd6qoZuqltyKEsyzVJq5I6rnUp6SjGeGhESikzzlc1eL7opfuVbrqbU1Zw9NCgtQMaZpY0eNnaaL2fHusvTK5vKu7sjSS1Y4y3QUA6K3e3Mau5UFDyMP7tYF9o8cAHZv68vipoIJg971PZIZ5HiwdvYGGvFVFHmGmZ2MxwmQYPXubPl9Up0tfoMQGetXd6mRbvhBw+boZ6WF7Mbv1+GsHRk0fQmPAH1GfmZirbCfDJ61tw3Px8/8pZsPAG4jlVhcPgZ7adwNWBB68lkRQWFiTgFlbnLY3DGGM7izIJIyT/jjIvEJw6fdJTc6krDzh6aMwMP9bvDH4ADSsa9uSWVJkAAAAASUVORK5CYII=);
+                    }
+                 </style><script type="text/javascript" language="javascript"> 
+          
+            // Startup 
+            // Hook up the the loaded event for the document/window, to linkify the document content
+            var startupFunction = function() { linkifyElement("messages"); };
+            
+            if(window.attachEvent)
+            {
+              window.attachEvent('onload', startupFunction);
+            }
+            else if (window.addEventListener) 
+            {
+              window.addEventListener('load', startupFunction, false);
+            }
+            else 
+            {
+              document.addEventListener('load', startupFunction, false);
+            } 
+            
+            // Toggles the visibility of table rows with the specified name 
+            function toggleTableRowsByName(name)
+            {
+               var allRows = document.getElementsByTagName('tr');
+               for (i=0; i < allRows.length; i++)
+               {
+                  var currentName = allRows[i].getAttribute('name');
+                  if(!!currentName && currentName.indexOf(name) == 0)
+                  {
+                      var isVisible = allRows[i].style.display == ''; 
+                      isVisible ? allRows[i].style.display = 'none' : allRows[i].style.display = '';
+                  }
+               }
+            }
+            
+            function scrollToFirstVisibleRow(name) 
+            {
+               var allRows = document.getElementsByTagName('tr');
+               for (i=0; i < allRows.length; i++)
+               {
+                  var currentName = allRows[i].getAttribute('name');
+                  var isVisible = allRows[i].style.display == ''; 
+                  if(!!currentName && currentName.indexOf(name) == 0 && isVisible)
+                  {
+                     allRows[i].scrollIntoView(true); 
+                     return true; 
+                  }
+               }
+               
+               return false;
+            }
+            
+            // Linkifies the specified text content, replaces candidate links with html links 
+            function linkify(text)
+            {
+                 if(!text || 0 === text.length)
+                 {
+                     return text; 
+                 }
+
+                 // Find http, https and ftp links and replace them with hyper links 
+                 var urlLink = /(http|https|ftp)\:\/\/[a-zA-Z0-9\-\.]+(:[a-zA-Z0-9]*)?\/?([a-zA-Z0-9\-\._\?\,\/\\\+&%\$#\=~;\{\}])*/gi;
+                 
+                 return text.replace(urlLink, '<a href="$&">$&</a>') ;
+            }
+            
+            // Linkifies the specified element by ID
+            function linkifyElement(id)
+            {
+                var element = document.getElementById(id);
+                if(!!element)
+                {
+                  element.innerHTML = linkify(element.innerHTML); 
+                }
+            }
+            
+            function ToggleMessageVisibility(projectName)
+            {
+              if(!projectName || 0 === projectName.length)
+              {
+                return; 
+              }
+              
+              toggleTableRowsByName("MessageRowClass" + projectName);
+              toggleTableRowsByName('MessageRowHeaderShow' + projectName);
+              toggleTableRowsByName('MessageRowHeaderHide' + projectName); 
+            }
+            
+            function ScrollToFirstVisibleMessage(projectName)
+            {
+              if(!projectName || 0 === projectName.length)
+              {
+                return; 
+              }
+              
+              // First try the 'Show messages' row
+              if(!scrollToFirstVisibleRow('MessageRowHeaderShow' + projectName))
+              {
+                // Failed to find a visible row for 'Show messages', try an actual message row 
+                scrollToFirstVisibleRow('MessageRowClass' + projectName); 
+              }
+            }
+           </script></head><body><h1 _locID="ConversionReport">
+          迁移报告 - </h1><div id="content"><h2 _locID="OverviewTitle">概述</h2><div id="overview"><table><tr><th></th><th _locID="ProjectTableHeader">项目</th><th _locID="PathTableHeader">路径</th><th _locID="ErrorsTableHeader">错误</th><th _locID="WarningsTableHeader">警告</th><th _locID="MessagesTableHeader">消息</th></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#AMD">AMD</a></strong></td><td>renderdoc\driver\ihv\amd\AMD.vcxproj</td><td class="textCentered"><a href="#AMDError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#ARM">ARM</a></strong></td><td>renderdoc\driver\ihv\arm\ARM.vcxproj</td><td class="textCentered"><a href="#ARMError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#breakpad_common">breakpad_common</a></strong></td><td>renderdoc\3rdparty\breakpad\client\windows\common.vcxproj</td><td class="textCentered"><a href="#breakpad_commonError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#crash_generation_client">crash_generation_client</a></strong></td><td>renderdoc\3rdparty\breakpad\client\windows\crash_generation\crash_generation_client.vcxproj</td><td class="textCentered"><a href="#crash_generation_clientError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#crash_generation_server">crash_generation_server</a></strong></td><td>renderdoc\3rdparty\breakpad\client\windows\crash_generation\crash_generation_server.vcxproj</td><td class="textCentered"><a href="#crash_generation_serverError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#d3d11">d3d11</a></strong></td><td>renderdoc\driver\d3d11\renderdoc_d3d11.vcxproj</td><td class="textCentered"><a href="#d3d11Error">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#d3d12">d3d12</a></strong></td><td>renderdoc\driver\d3d12\renderdoc_d3d12.vcxproj</td><td class="textCentered"><a href="#d3d12Error">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#dxbc">dxbc</a></strong></td><td>renderdoc\driver\shaders\dxbc\renderdoc_dxbc.vcxproj</td><td class="textCentered"><a href="#dxbcError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#dxgi">dxgi</a></strong></td><td>renderdoc\driver\dxgi\renderdoc_dxgi.vcxproj</td><td class="textCentered"><a href="#dxgiError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#dxil">dxil</a></strong></td><td>renderdoc\driver\shaders\dxil\renderdoc_dxil.vcxproj</td><td class="textCentered"><a href="#dxilError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#exception_handler">exception_handler</a></strong></td><td>renderdoc\3rdparty\breakpad\client\windows\handler\exception_handler.vcxproj</td><td class="textCentered"><a href="#exception_handlerError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#gl">gl</a></strong></td><td>renderdoc\driver\gl\renderdoc_gl.vcxproj</td><td class="textCentered"><a href="#glError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#Intel">Intel</a></strong></td><td>renderdoc\driver\ihv\intel\Intel.vcxproj</td><td class="textCentered"><a href="#IntelError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#NV">NV</a></strong></td><td>renderdoc\driver\ihv\nv\NV.vcxproj</td><td class="textCentered"><a href="#NVError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#pyrenderdoc_module">pyrenderdoc_module</a></strong></td><td>qrenderdoc\Code\pyrenderdoc\pyrenderdoc_module.vcxproj</td><td class="textCentered"><a href="#pyrenderdoc_moduleError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#qrenderdoc">qrenderdoc</a></strong></td><td>qrenderdoc\qrenderdoc_local.vcxproj</td><td class="textCentered"><a href="#qrenderdocError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#qrenderdoc_module">qrenderdoc_module</a></strong></td><td>qrenderdoc\Code\pyrenderdoc\qrenderdoc_module.vcxproj</td><td class="textCentered"><a href="#qrenderdoc_moduleError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#renderdoc">renderdoc</a></strong></td><td>renderdoc\renderdoc.vcxproj</td><td class="textCentered"><a href="#renderdocError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#renderdoccmd">renderdoccmd</a></strong></td><td>renderdoccmd\renderdoccmd.vcxproj</td><td class="textCentered"><a href="#renderdoccmdError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#renderdocshim">renderdocshim</a></strong></td><td>renderdocshim\renderdocshim.vcxproj</td><td class="textCentered"><a href="#renderdocshimError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#renderdocui_stub">renderdocui_stub</a></strong></td><td>qrenderdoc\renderdocui_stub.vcxproj</td><td class="textCentered"><a href="#renderdocui_stubError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#spirv">spirv</a></strong></td><td>renderdoc\driver\shaders\spirv\renderdoc_spirv.vcxproj</td><td class="textCentered"><a href="#spirvError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#version">version</a></strong></td><td>renderdoc\renderdoc_version.vcxproj</td><td class="textCentered"><a href="#versionError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconErrorEncoded" /><td><strong><a href="#vulkan">vulkan</a></strong></td><td>renderdoc\driver\vulkan\renderdoc_vulkan.vcxproj</td><td class="textCentered"><a href="#vulkanError">1</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#breakpad">breakpad</a></strong></td><td>breakpad</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#DLL">DLL</a></strong></td><td>DLL</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#drivers">drivers</a></strong></td><td>drivers</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#IHV">IHV</a></strong></td><td>IHV</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#Python Modules">Python Modules</a></strong></td><td>Python Modules</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#shaders">shaders</a></strong></td><td>shaders</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#UI">UI</a></strong></td><td>UI</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#Utility">Utility</a></strong></td><td>Utility</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#">0</a></td></tr><tr><td class="IconSuccessEncoded" /><td><strong><a href="#Solution"><span _locID="OverviewSolutionSpan">解决方案</span></a></strong></td><td>renderdoc.sln</td><td class="textCentered"><a>0</a></td><td class="textCentered"><a>0</a></td><td class="textCentered"><a href="#" onclick="ScrollToFirstVisibleMessage('Solution'); return false;">1</a></td></tr></table></div><h2 _locID="SolutionAndProjectsTitle">解决方案和项目</h2><div id="messages"><a name="AMD" /><h3>AMD</h3><table><tr id="AMDHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassAMD"><td class="IconErrorEncoded"><a name="AMDError" /></td><td class="messageCell"><strong>renderdoc\driver\ihv\amd\AMD.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="ARM" /><h3>ARM</h3><table><tr id="ARMHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassARM"><td class="IconErrorEncoded"><a name="ARMError" /></td><td class="messageCell"><strong>renderdoc\driver\ihv\arm\ARM.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="breakpad_common" /><h3>breakpad_common</h3><table><tr id="breakpad_commonHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassbreakpad_common"><td class="IconErrorEncoded"><a name="breakpad_commonError" /></td><td class="messageCell"><strong>renderdoc\3rdparty\breakpad\client\windows\common.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="crash_generation_client" /><h3>crash_generation_client</h3><table><tr id="crash_generation_clientHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClasscrash_generation_client"><td class="IconErrorEncoded"><a name="crash_generation_clientError" /></td><td class="messageCell"><strong>renderdoc\3rdparty\breakpad\client\windows\crash_generation\crash_generation_client.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="crash_generation_server" /><h3>crash_generation_server</h3><table><tr id="crash_generation_serverHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClasscrash_generation_server"><td class="IconErrorEncoded"><a name="crash_generation_serverError" /></td><td class="messageCell"><strong>renderdoc\3rdparty\breakpad\client\windows\crash_generation\crash_generation_server.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="d3d11" /><h3>d3d11</h3><table><tr id="d3d11HeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassd3d11"><td class="IconErrorEncoded"><a name="d3d11Error" /></td><td class="messageCell"><strong>renderdoc\driver\d3d11\renderdoc_d3d11.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="d3d12" /><h3>d3d12</h3><table><tr id="d3d12HeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassd3d12"><td class="IconErrorEncoded"><a name="d3d12Error" /></td><td class="messageCell"><strong>renderdoc\driver\d3d12\renderdoc_d3d12.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="dxbc" /><h3>dxbc</h3><table><tr id="dxbcHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassdxbc"><td class="IconErrorEncoded"><a name="dxbcError" /></td><td class="messageCell"><strong>renderdoc\driver\shaders\dxbc\renderdoc_dxbc.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="dxgi" /><h3>dxgi</h3><table><tr id="dxgiHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassdxgi"><td class="IconErrorEncoded"><a name="dxgiError" /></td><td class="messageCell"><strong>renderdoc\driver\dxgi\renderdoc_dxgi.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="dxil" /><h3>dxil</h3><table><tr id="dxilHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassdxil"><td class="IconErrorEncoded"><a name="dxilError" /></td><td class="messageCell"><strong>renderdoc\driver\shaders\dxil\renderdoc_dxil.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="exception_handler" /><h3>exception_handler</h3><table><tr id="exception_handlerHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassexception_handler"><td class="IconErrorEncoded"><a name="exception_handlerError" /></td><td class="messageCell"><strong>renderdoc\3rdparty\breakpad\client\windows\handler\exception_handler.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="gl" /><h3>gl</h3><table><tr id="glHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassgl"><td class="IconErrorEncoded"><a name="glError" /></td><td class="messageCell"><strong>renderdoc\driver\gl\renderdoc_gl.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="Intel" /><h3>Intel</h3><table><tr id="IntelHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassIntel"><td class="IconErrorEncoded"><a name="IntelError" /></td><td class="messageCell"><strong>renderdoc\driver\ihv\intel\Intel.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="NV" /><h3>NV</h3><table><tr id="NVHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassNV"><td class="IconErrorEncoded"><a name="NVError" /></td><td class="messageCell"><strong>renderdoc\driver\ihv\nv\NV.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="pyrenderdoc_module" /><h3>pyrenderdoc_module</h3><table><tr id="pyrenderdoc_moduleHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClasspyrenderdoc_module"><td class="IconErrorEncoded"><a name="pyrenderdoc_moduleError" /></td><td class="messageCell"><strong>qrenderdoc\Code\pyrenderdoc\pyrenderdoc_module.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="qrenderdoc" /><h3>qrenderdoc</h3><table><tr id="qrenderdocHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassqrenderdoc"><td class="IconErrorEncoded"><a name="qrenderdocError" /></td><td class="messageCell"><strong>qrenderdoc\qrenderdoc_local.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="qrenderdoc_module" /><h3>qrenderdoc_module</h3><table><tr id="qrenderdoc_moduleHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassqrenderdoc_module"><td class="IconErrorEncoded"><a name="qrenderdoc_moduleError" /></td><td class="messageCell"><strong>qrenderdoc\Code\pyrenderdoc\qrenderdoc_module.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="renderdoc" /><h3>renderdoc</h3><table><tr id="renderdocHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassrenderdoc"><td class="IconErrorEncoded"><a name="renderdocError" /></td><td class="messageCell"><strong>renderdoc\renderdoc.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="renderdoccmd" /><h3>renderdoccmd</h3><table><tr id="renderdoccmdHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassrenderdoccmd"><td class="IconErrorEncoded"><a name="renderdoccmdError" /></td><td class="messageCell"><strong>renderdoccmd\renderdoccmd.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="renderdocshim" /><h3>renderdocshim</h3><table><tr id="renderdocshimHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassrenderdocshim"><td class="IconErrorEncoded"><a name="renderdocshimError" /></td><td class="messageCell"><strong>renderdocshim\renderdocshim.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="renderdocui_stub" /><h3>renderdocui_stub</h3><table><tr id="renderdocui_stubHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassrenderdocui_stub"><td class="IconErrorEncoded"><a name="renderdocui_stubError" /></td><td class="messageCell"><strong>qrenderdoc\renderdocui_stub.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="spirv" /><h3>spirv</h3><table><tr id="spirvHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassspirv"><td class="IconErrorEncoded"><a name="spirvError" /></td><td class="messageCell"><strong>renderdoc\driver\shaders\spirv\renderdoc_spirv.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="version" /><h3>version</h3><table><tr id="versionHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassversion"><td class="IconErrorEncoded"><a name="versionError" /></td><td class="messageCell"><strong>renderdoc\renderdoc_version.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="vulkan" /><h3>vulkan</h3><table><tr id="vulkanHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="ErrorRowClassvulkan"><td class="IconErrorEncoded"><a name="vulkanError" /></td><td class="messageCell"><strong>renderdoc\driver\vulkan\renderdoc_vulkan.vcxproj:
+        </strong><span>找不到此项目类型所基于的应用程序。有关更多信息，请尝试此链接: 8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942</span></td></tr></table><a name="breakpad" /><h3>breakpad</h3><table><tr id="breakpadHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">breakpad 未记录任何消息。
+                  </td></tr></table><a name="DLL" /><h3>DLL</h3><table><tr id="DLLHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">DLL 未记录任何消息。
+                  </td></tr></table><a name="drivers" /><h3>drivers</h3><table><tr id="driversHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">drivers 未记录任何消息。
+                  </td></tr></table><a name="IHV" /><h3>IHV</h3><table><tr id="IHVHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">IHV 未记录任何消息。
+                  </td></tr></table><a name="Python Modules" /><h3>Python Modules</h3><table><tr id="Python ModulesHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">Python Modules 未记录任何消息。
+                  </td></tr></table><a name="shaders" /><h3>shaders</h3><table><tr id="shadersHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">shaders 未记录任何消息。
+                  </td></tr></table><a name="UI" /><h3>UI</h3><table><tr id="UIHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">UI 未记录任何消息。
+                  </td></tr></table><a name="Utility" /><h3>Utility</h3><table><tr id="UtilityHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr><td class="IconInfoEncoded" /><td class="messageCell" _locID="NoMessagesRow">Utility 未记录任何消息。
+                  </td></tr></table><a name="Solution" /><h3 _locID="ProjectDisplayNameHeader">解决方案</h3><table><tr id="SolutionHeaderRow"><th></th><th class="messageCell" _locID="MessageTableHeader">消息</th></tr><tr name="MessageRowHeaderShowSolution"><td class="IconInfoEncoded" /><td class="messageCell"><a _locID="ShowAdditionalMessages" href="#" name="SolutionMessage" onclick="ToggleMessageVisibility('Solution'); return false;">
+          显示 1 其他消息
+        </a></td></tr><tr name="MessageRowClassSolution" style="display: none"><td class="IconInfoEncoded"><a name="SolutionMessage" /></td><td class="messageCell"><strong>renderdoc.sln:
+        </strong><span>解决方案文件不需要迁移。</span></td></tr><tr style="display: none" name="MessageRowHeaderHideSolution"><td class="IconInfoEncoded" /><td class="messageCell"><a _locID="HideAdditionalMessages" href="#" name="SolutionMessage" onclick="ToggleMessageVisibility('Solution'); return false;">
+          隐藏 1 其他消息
+        </a></td></tr></table></div></div></body></html>
