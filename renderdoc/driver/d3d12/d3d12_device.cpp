@@ -4934,6 +4934,17 @@ void WrappedID3D12Device::DataUploadSync()
   }
 }
 
+rdcarray<SDObject *> WrappedID3D12Device::DetachAnnotations()
+{
+  rdcarray<SDObject *> ret;
+  if(m_Queue)
+    ret.swap(m_Queue->GetCommandData()->m_EventAnnotations);
+  for(auto it = m_Annotations.begin(); it != m_Annotations.end(); ++it)
+    ret.push_back(it->second);
+  m_Annotations.clear();
+  return ret;
+}
+
 void WrappedID3D12Device::InternalQueueWaitForIdle()
 {
   QueueWaitForIdle(GetQueue(), m_WFIFence);
@@ -5710,7 +5721,7 @@ RDResult WrappedID3D12Device::ReadLogInitialisation(RDCFile *rdc, bool storeStru
   GetReplay()->WriteFrameRecord().frameInfo.initDataSize =
       chunkInfos[(D3D12Chunk)SystemChunk::InitialContents].totalsize;
 
-  RDCDEBUG("Allocating %llu persistant bytes of memory for the log.",
+  RDCDEBUG("Allocating %llu persistent bytes of memory for the log.",
            GetReplay()->WriteFrameRecord().frameInfo.persistentSize);
 
   if(m_FatalError != ResultCode::Succeeded)

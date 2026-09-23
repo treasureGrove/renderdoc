@@ -186,8 +186,25 @@ struct ResultDataBase
   uint32_t shadRate;
   uint32_t padding[2];
 
+  // padding so overall struct size is 8-byte aligned for if LaneData contains 8-byte data
+  uint32_t paddingForDoubles[4];
+
   // LaneData lanes[N]
   // each LaneData is prefixed by the subgroup struct below if needed, and then the stage struct unconditionally
+};
+
+struct ResultBaseBuffer
+{
+  uint32_t hit_count;
+  uint32_t total_count;
+  uint32_t dummy;
+  uint32_t padding;
+
+  // extra padding so the offset of ResultData is 8-byte aligned in case we have user 8-byte inputs
+  Vec4u paddingForDoubles;
+
+  // dummy entry, used only for offsets of ResultData hits[];
+  byte hits;
 };
 
 // things we need per-lane with subgroups active, before any per-stage data

@@ -59,7 +59,7 @@
 #include <QTextDocument>
 #include <QTextStream>
 #include <QUrlQuery>
-#include "Code/Interface/PersistantConfig.h"
+#include "Code/Interface/PersistentConfig.h"
 #include "Code/QRDUtils.h"
 #include "ui_AgentAssistantPanel.h"
 
@@ -2349,7 +2349,7 @@ QString AgentAssistantPanel::formatPipelineSnapshot()
 
 void AgentAssistantPanel::loadSettingsFromConfig()
 {
-  PersistantConfig &cfg = m_Ctx.Config();
+  PersistentConfig &cfg = m_Ctx.Config();
   int p = cfg.AgentAssistant_LLMProvider;
   if(p < 0 || p > (int)AgentLLMBackend::Volcano)
     p = 0;
@@ -2410,7 +2410,7 @@ void AgentAssistantPanel::loadSettingsFromConfig()
 
 void AgentAssistantPanel::saveSettingsToConfig()
 {
-  PersistantConfig &cfg = m_Ctx.Config();
+  PersistentConfig &cfg = m_Ctx.Config();
   const int p = ui->providerCombo->currentIndex();
   const QString modelLine = ui->modelCombo->currentText().trimmed();
 
@@ -2519,7 +2519,7 @@ void AgentAssistantPanel::updateProviderUi()
 
 void AgentAssistantPanel::repopulateModelCombo()
 {
-  PersistantConfig &cfg = m_Ctx.Config();
+  PersistentConfig &cfg = m_Ctx.Config();
   const int idx = ui->providerCombo->currentIndex();
 
   ui->modelCombo->blockSignals(true);
@@ -2629,7 +2629,7 @@ void AgentAssistantPanel::repopulateModelCombo()
 
 void AgentAssistantPanel::onProviderChanged(int idx)
 {
-  PersistantConfig &cfg = m_Ctx.Config();
+  PersistentConfig &cfg = m_Ctx.Config();
   if(m_activeLLMProvider >= 0 && m_activeLLMProvider != idx)
   {
     QString tok = ui->apiTokenEdit->text();
@@ -2866,7 +2866,7 @@ void AgentAssistantPanel::sendToLLM()
     return;
   }
 
-  PersistantConfig &cfg = m_Ctx.Config();
+  PersistentConfig &cfg = m_Ctx.Config();
   const int p = ui->providerCombo->currentIndex();
   QString apiKey = ui->apiTokenEdit->text().trimmed();
   if(apiKey.isEmpty() && p != (int)AgentLLMBackend::OpenAICompatible)
@@ -3518,7 +3518,7 @@ void AgentAssistantPanel::sendFollowUpWithData(uint32_t eid)
 
 void AgentAssistantPanel::sendLLMRequestRaw(const QString &userBody)
 {
-  PersistantConfig &cfg = m_Ctx.Config();
+  PersistentConfig &cfg = m_Ctx.Config();
   const int p = ui->providerCombo->currentIndex();
   QString apiKey = ui->apiTokenEdit->text().trimmed();
 

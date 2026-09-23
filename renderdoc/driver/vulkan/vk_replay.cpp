@@ -106,7 +106,8 @@ IReplayDriver *VulkanReplay::MakeDummyDriver()
     }
   }
 
-  IReplayDriver *dummy = new DummyDriver(this, shaders, m_pDriver->DetachStructuredFile());
+  IReplayDriver *dummy = new DummyDriver(this, shaders, m_pDriver->DetachStructuredFile(),
+                                         m_pDriver->DetachAnnotations());
 
   return dummy;
 }
@@ -247,11 +248,11 @@ rdcarray<uint32_t> VulkanReplay::GetPassEvents(uint32_t eventId)
 
     // if we've come to the start of the log we were outside of a render pass
     // to start with
-    if(start->previous == NULL)
+    if(start->previousAction == NULL)
       return passEvents;
 
     // step back
-    start = start->previous;
+    start = start->previousAction;
   }
 
   // store all the action eventIDs up to the one specified at the start
@@ -267,7 +268,7 @@ rdcarray<uint32_t> VulkanReplay::GetPassEvents(uint32_t eventId)
     if(start->flags & (ActionFlags::MeshDispatch | ActionFlags::Drawcall | ActionFlags::PassBoundary))
       passEvents.push_back(start->eventId);
 
-    start = start->next;
+    start = start->nextAction;
   }
 
   return passEvents;
@@ -345,7 +346,16 @@ rdcarray<BufferDescription> VulkanReplay::GetBuffers()
 
 TextureDescription VulkanReplay::GetTexture(ResourceId id)
 {
-  VulkanCreationInfo::Image &iminfo = m_pDriver->m_CreationInfo.m_Image[id];
+  auto imit = m_pDriver->m_CreationInfo.m_Image.find(id);
+  if(imit == m_pDriver->m_CreationInfo.m_Image.end())
+  {
+    RDCERR("Invalid image id");
+    return {};
+  }
+
+  VulkanCreationInfo::Image &iminfo = imit->second;
+
+  VkImage liveWrappedImage = GetResourceManager()->GetHandle<VkImage>(id);
 
   TextureDescription ret = {};
   ret.resourceId = id;
@@ -357,10 +367,27 @@ TextureDescription VulkanReplay::GetTexture(ResourceId id)
   ret.depth = iminfo.extent.depth;
   ret.mips = iminfo.mipLevels;
 
-  ret.byteSize = 0;
-  for(uint32_t s = 0; s < ret.mips; s++)
-    ret.byteSize += GetByteSize(ret.width, ret.height, ret.depth, iminfo.format, s);
-  ret.byteSize *= ret.arraysize;
+  VkMemoryRequirements mrq = {0};
+  VkDevice dev = m_pDriver->GetDev();
+
+  // some entries in m_Images don't have a live handle - e.g. swapchains
+  if(liveWrappedImage != VK_NULL_HANDLE)
+    ObjDisp(dev)->GetImageMemoryRequirements(Unwrap(dev), Unwrap(liveWrappedImage), &mrq);
+
+  ret.byteSize = mrq.size;
+  if(ret.byteSize == 0)
+  {
+    for(uint32_t s = 0; s < ret.mips; s++)
+      ret.byteSize += GetByteSize(ret.width, ret.height, ret.depth, iminfo.format, s);
+    ret.byteSize *= ret.arraysize;
+  }
+
+  LockedConstImageStateRef lockedImage = m_pDriver->FindConstImageState(id);
+  if(lockedImage && lockedImage->isMemoryBound)
+  {
+    ret.memory = lockedImage->boundMemory;
+    ret.memoryOffset = lockedImage->boundMemoryOffset;
+  }
 
   ret.msQual = 0;
   ret.msSamp = RDCMAX(1U, (uint32_t)iminfo.samples);
@@ -399,13 +426,23 @@ TextureDescription VulkanReplay::GetTexture(ResourceId id)
 
 BufferDescription VulkanReplay::GetBuffer(ResourceId id)
 {
-  VulkanCreationInfo::Buffer &bufinfo = m_pDriver->m_CreationInfo.m_Buffer[id];
+  auto bufit = m_pDriver->m_CreationInfo.m_Buffer.find(id);
+  if(bufit == m_pDriver->m_CreationInfo.m_Buffer.end())
+  {
+    RDCERR("Invalid image id");
+    return {};
+  }
+
+  VulkanCreationInfo::Buffer &bufinfo = bufit->second;
 
   BufferDescription ret;
   ret.resourceId = id;
   ret.length = bufinfo.size;
   ret.creationFlags = BufferCategory::NoFlags;
   ret.gpuAddress = bufinfo.gpuAddress;
+
+  ret.memory = bufinfo.boundMemory;
+  ret.memoryOffset = bufinfo.boundMemoryOffset;
 
   if(bufinfo.usage & (VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT))
     ret.creationFlags |= BufferCategory::ReadWrite;
@@ -5156,8 +5193,8 @@ ResourceId VulkanReplay::ApplyCustomShader(TextureDisplay &display)
   disp.linearDisplayAsGamma = false;
   disp.subresource = display.subresource;
   disp.overlay = DebugOverlay::NoOverlay;
-  disp.rangeMin = 0.0f;
-  disp.rangeMax = 1.0f;
+  disp.rangeMin = display.rangeMin;
+  disp.rangeMax = display.rangeMax;
   disp.rawOutput = false;
   disp.scale = 1.0f;
 
@@ -5603,10 +5640,8 @@ void VulkanReplay::SetProxyBufferData(ResourceId bufid, byte *data, size_t dataS
   VULKANNOTIMP("SetProxyTextureData");
 }
 
-RDResult Vulkan_CreateReplayDevice(RDCFile *rdc, const ReplayOptions &opts, IReplayDriver **driver)
+void VulkanEnvSetup()
 {
-  RDCDEBUG("Creating a VulkanReplay replay device");
-
   // disable the layer env var, just in case the user left it set from a previous capture run
   Process::RegisterEnvironmentModification(
       EnvironmentModification(EnvMod::Set, EnvSep::NoSep, RENDERDOC_VULKAN_LAYER_VAR, "0"));
@@ -5659,6 +5694,9 @@ RDResult Vulkan_CreateReplayDevice(RDCFile *rdc, const ReplayOptions &opts, IRep
   Process::RegisterEnvironmentModification(
       EnvironmentModification(EnvMod::Set, EnvSep::NoSep, "DISABLE_VK_LAYER_GPUOpen_GRS", "1"));
 
+  Process::RegisterEnvironmentModification(
+      EnvironmentModification(EnvMod::Set, EnvSep::NoSep, "DISABLE_LAYER_NV_PRESENT_1", "1"));
+
   // fpsmon not only has a buggy layer but it also picks an absurdly generic disable environment
   // variable :(. Hopefully no other program picks this, or if it does then it's probably not a
   // bad thing to disable too
@@ -5666,6 +5704,11 @@ RDResult Vulkan_CreateReplayDevice(RDCFile *rdc, const ReplayOptions &opts, IRep
       EnvironmentModification(EnvMod::Set, EnvSep::NoSep, "DISABLE_LAYER", "1"));
 
   Process::ApplyEnvironmentModification();
+}
+
+RDResult Vulkan_CreateReplayDevice(RDCFile *rdc, const ReplayOptions &opts, IReplayDriver **driver)
+{
+  RDCDEBUG("Creating a VulkanReplay replay device");
 
   void *module = LoadVulkanLibrary();
 
@@ -5763,6 +5806,7 @@ struct VulkanDriverRegistration
   VulkanDriverRegistration()
   {
     RenderDoc::Inst().RegisterReplayProvider(RDCDriver::Vulkan, &Vulkan_CreateReplayDevice);
+    RenderDoc::Inst().AddEnvSetup(&VulkanEnvSetup);
     RenderDoc::Inst().SetVulkanLayerCheck(&VulkanReplay::CheckVulkanLayer);
     RenderDoc::Inst().SetVulkanLayerInstall(&VulkanReplay::InstallVulkanLayer);
   }

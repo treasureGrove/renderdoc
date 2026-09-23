@@ -647,6 +647,13 @@ void VulkanDebugManager::PatchLineStripIndexBuffer(const ActionDescription *acti
   ::PatchLineStripIndexBuffer(action, MakePrimitiveTopology(rs.primitiveTopology, 3), idx8, idx16,
                               idx32, patchedIndices);
 
+  // don't bother to create a 0 length index buffer which the caller won't use
+  if(patchedIndices.empty())
+  {
+    indexCount = 0;
+    return;
+  }
+
   indexBuffer.Create(m_pDriver, m_Device, patchedIndices.size() * sizeof(uint32_t), 1,
                      GPUBuffer::eGPUBufferIBuffer);
   indexBuffer.Name("PatchedStripIB");
@@ -2999,6 +3006,11 @@ ResourceId VulkanReplay::RenderOverlay(ResourceId texid, FloatVector clearCol, D
               VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, {}};
           clearDepthAtt.clearValue.depthStencil.depth = depthClear;
           clearDepthAtt.clearValue.depthStencil.stencil = 0;
+
+          if(IsDepthOnlyFormat(iminfo.format))
+            clearDepthAtt.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+          else if(IsStencilOnlyFormat(iminfo.format))
+            clearDepthAtt.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
 
           atts.push_back(clearDepthAtt);
         }

@@ -3309,6 +3309,7 @@ void VulkanReplay::FetchMeshOut(uint32_t eventId, VulkanRenderState &state)
       shaderCreateInfo.codeType = VK_SHADER_CODE_TYPE_SPIRV_EXT;
       shaderCreateInfo.codeSize = taskSpirv.size() * sizeof(uint32_t);
       shaderCreateInfo.pCode = taskSpirv.data();
+      shaderCreateInfo.pSpecializationInfo = &taskSpecInfo;
 
       vkr = m_pDriver->vkCreateShadersEXT(m_Device, 1, &shaderCreateInfo, NULL, &taskShader);
 
@@ -5857,6 +5858,21 @@ void VulkanReplay::FetchTessGSOut(uint32_t eventId, VulkanRenderState &state)
     if(StageIndex(stage.stage) == stageIndex)
     {
       stage.module = module;
+      break;
+    }
+  }
+
+  // remove the pixel shader
+  for(uint32_t i = 0; i < pipeCreateInfo.stageCount; i++)
+  {
+    VkPipelineShaderStageCreateInfo &stage =
+        (VkPipelineShaderStageCreateInfo &)pipeCreateInfo.pStages[i];
+
+    if(stage.stage == VK_SHADER_STAGE_FRAGMENT_BIT)
+    {
+      if(i < pipeCreateInfo.stageCount - 1)
+        stage = pipeCreateInfo.pStages[pipeCreateInfo.stageCount - 1];
+      pipeCreateInfo.stageCount--;
       break;
     }
   }

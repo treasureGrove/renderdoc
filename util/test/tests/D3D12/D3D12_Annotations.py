@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Callable
+
 import renderdoc as rd
 import rdtest
 
@@ -10,7 +13,7 @@ class D3D12_Annotations(rdtest.Annotations):
         super().check_resource_annotations()
         super().check_command_annotations(True)
 
-        annot = lambda x: annots.FindChildByKeyPath(x)
+        annot: Callable[[str], rd.SDObject | None] = lambda x: annots.FindChildByKeyPath(x)
 
         # Check annotations attached to indirect draws
         draw_indirect_count = self.find_action("DrawIndirectCount")
@@ -38,7 +41,7 @@ class D3D12_Annotations(rdtest.Annotations):
         # Check loose event annotation attached to a barrier
         with rdtest.log.auto_section('Loose Event'):
             marker = self.find_action("Loose")
-            action = marker.next
+            action = marker.nextAction
             annots = action.events[0].annotations
             self.check_eq(annot("loose.int").type.basetype, rd.SDBasic.SignedInteger)
             self.check_eq(annot("loose.int").AsInt(), 1)
@@ -46,16 +49,16 @@ class D3D12_Annotations(rdtest.Annotations):
         # Check loose event annotation attached to vkEndCommandBuffer
         with rdtest.log.auto_section('CommandList Close Event'):
             marker = self.find_action("Loose")
-            action = marker.next
+            action = marker.nextAction
             annots = action.events[-1].annotations
             self.check_eq(annot("loose.int").type.basetype, rd.SDBasic.SignedInteger)
             self.check_eq(annot("loose.int").AsInt(), 2)
-            self.check(annot("new.value") is None)
+            assert annot("new.value") is None
 
         # Check loose event annotation in an empty command buffer
         with rdtest.log.auto_section('Empty Command Buffer'):
             marker = self.find_action("Empty")
-            action = marker.next
+            action = marker.nextAction
             annots = action.events[0].annotations
             self.check_eq(annot("empty.int").type.basetype, rd.SDBasic.SignedInteger)
             self.check_eq(annot("empty.int").AsInt(), 1)

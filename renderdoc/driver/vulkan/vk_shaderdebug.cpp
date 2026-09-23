@@ -408,8 +408,8 @@ public:
       if(data.width == 0)
         return rdcspv::DeviceOpResult::Failed;
 
-      uint32_t coords[4];
-      for(int i = 0; i < 4; i++)
+      uint32_t coords[4] = {};
+      for(int i = 0; i < coord.columns; i++)
         coords[i] = uintComp(coord, i);
 
       if(coords[0] >= data.width || coords[1] >= data.height || coords[2] >= data.depth)
@@ -551,8 +551,8 @@ public:
       if(data.width == 0)
         return rdcspv::DeviceOpResult::Failed;
 
-      uint32_t coords[4];
-      for(int i = 0; i < 4; i++)
+      uint32_t coords[4] = {};
+      for(int i = 0; i < coord.columns; i++)
         coords[i] = uintComp(coord, i);
 
       if(coords[0] >= data.width || coords[1] >= data.height || coords[2] >= data.depth)
@@ -1512,11 +1512,13 @@ public:
 
     VkClearValue clear = {};
 
+    const uint32_t sampleFormat = SampleFormatIndex(uintTex, sintTex);
+
     VkRenderPassBeginInfo rpbegin = {
         VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         NULL,
-        Unwrap(m_DebugData.RenderPass),
-        Unwrap(m_DebugData.Framebuffer),
+        Unwrap(m_DebugData.RenderPass[sampleFormat]),
+        Unwrap(m_DebugData.Framebuffer[sampleFormat]),
         {{0, 0}, {1, 1}},
         1,
         &clear,
@@ -2334,6 +2336,16 @@ private:
     return NULL;
   }
 
+  static uint32_t SampleFormatIndex(bool uintTex, bool sintTex)
+  {
+    if(uintTex)
+      return ShaderDebugData::SampleFormat_UInt;
+    else if(sintTex)
+      return ShaderDebugData::SampleFormat_SInt;
+
+    return ShaderDebugData::SampleFormat_Float;
+  }
+
   VkPipeline MakePipe(const ShaderConstParameters &params, uint32_t floatBitSize, bool depthTex,
                       bool uintTex, bool sintTex)
   {
@@ -2441,6 +2453,8 @@ private:
       return pipe;
     }
 
+    const uint32_t sampleFormat = SampleFormatIndex(uintTex, sintTex);
+
     const VkPipelineShaderStageCreateInfo shaderStages[2] = {
         {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, NULL, 0, VK_SHADER_STAGE_VERTEX_BIT,
          m_pDriver->GetShaderCache()->GetBuiltinModule(BuiltinShader::ShaderDebugSampleVS), "main",
@@ -2522,7 +2536,7 @@ private:
         &colorBlend,
         &dynamicState,
         m_DebugData.PipeLayout,
-        m_DebugData.RenderPass,
+        m_DebugData.RenderPass[sampleFormat],
         0,                 // sub pass
         VK_NULL_HANDLE,    // base pipeline handle
         -1,                // base pipeline index
@@ -3907,6 +3921,9 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
   rdcspv::MemoryAccessAndParamDatas alignedAccess;
   alignedAccess.setAligned(sizeof(uint32_t));
 
+  rdcspv::MemoryAccessAndParamDatas aligned8Access;
+  alignedAccess.setAligned(sizeof(uint64_t));
+
   rdcspv::Id uint32Type = editor.DeclareType(rdcspv::scalar<uint32_t>());
   rdcspv::Id sint32Type = editor.DeclareType(rdcspv::scalar<int32_t>());
   rdcspv::Id floatType = editor.DeclareType(rdcspv::scalar<float>());
@@ -4254,7 +4271,9 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
       }
       editor.SetName(value.base, StringFormat::Fmt("__rd_base_%zu_%s", i, param.varName.c_str()));
       // non-float inputs are considered flat
-      value.flat = VarTypeCompType(param.varType) != CompType::Float;
+      // doubles are also flat
+      value.flat =
+          VarTypeCompType(param.varType) != CompType::Float || param.varType == VarType::Double;
 
       // mark this as non-flat so we still derive it for helper lanes as it will vary
       if(param.systemValue == ShaderBuiltin::IndexInSubgroup ||
@@ -4271,7 +4290,7 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
 
       // align offset conservatively, to 16-byte aligned. We do this with explicit uints so we can
       // preview with spirv-cross (and because it doesn't cost anything particularly)
-      uint32_t paddingWords = ((paramAlign - (offset % 16)) / 4) % 4;
+      uint32_t paddingWords = ((paramAlign - (offset % paramAlign)) / 4) % (paramAlign / 4);
       for(uint32_t p = 0; p < paddingWords; p++)
       {
         structMembers.push_back({uint32Type, "__pad", offset});
@@ -4367,7 +4386,7 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
 
     const uint32_t dataStart = (uint32_t)AlignUp(sizeof(rdcspv::ResultDataBase), sizeof(Vec4f));
 
-    RDCASSERT((structStride % sizeof(Vec4f)) == 0);
+    RDCASSERT((structStride % paramAlign) == 0);
 
     rdcspv::Id LaneDataArray = editor.AddType(rdcspv::OpTypeArray(
         editor.MakeId(), LaneDataStruct, editor.AddConstantImmediate<uint32_t>(numLanes)));
@@ -4382,19 +4401,20 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
   rdcspv::Id ResultDataRTArray =
       editor.AddType(rdcspv::OpTypeRuntimeArray(editor.MakeId(), ResultDataBaseType));
 
+  const uint32_t resultStride = structStride * numLanes + sizeof(rdcspv::ResultDataBase);
   editor.AddDecoration(rdcspv::OpDecorate(
-      ResultDataRTArray, rdcspv::DecorationParam<rdcspv::Decoration::ArrayStride>(
-                             structStride * numLanes + sizeof(rdcspv::ResultDataBase))));
+      ResultDataRTArray, rdcspv::DecorationParam<rdcspv::Decoration::ArrayStride>(resultStride)));
 
-  rdcspv::Id bufBase =
-      editor.DeclareStructType("__rd_HitStorage", {
-                                                      {uint32Type, "hit_count", 0},
-                                                      {uint32Type, "total_count", sizeof(uint32_t)},
-                                                      {uint32Type, "dummy", sizeof(uint32_t) * 2},
-                                                      // uint padding
+  RDCASSERT((resultStride % paramAlign) == 0);
 
-                                                      {ResultDataRTArray, "hits", sizeof(Vec4f)},
-                                                  });
+  rdcspv::Id bufBase = editor.DeclareStructType(
+      "__rd_ResultBaseBuffer",
+      {
+          {uint32Type, "hit_count", offsetof(rdcspv::ResultBaseBuffer, hit_count)},
+          {uint32Type, "total_count", offsetof(rdcspv::ResultBaseBuffer, total_count)},
+          {uint32Type, "dummy", offsetof(rdcspv::ResultBaseBuffer, dummy)},
+          {ResultDataRTArray, "hits", offsetof(rdcspv::ResultBaseBuffer, hits)},
+      });
 
   rdcspv::StorageClass bufferClass = editor.PrepareAddedBufferAccess();
 
@@ -5254,22 +5274,27 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
                 ptrType, editor.MakeId(), outputPtr,
                 {editor.AddConstantImmediate<uint32_t>((uint32_t)val.structIndex)}));
 
+            const rdcspv::DataType &dataType = editor.GetDataType(val.type);
+            rdcspv::MemoryAccessAndParamDatas access = alignedAccess;
+            if(dataType.scalar().width == 8)
+              access = aligned8Access;
+
             if(val.base == isHelper)
             {
-              ops.add(rdcspv::OpStore(valPtr, isHelperPerQuad[q], alignedAccess));
+              ops.add(rdcspv::OpStore(valPtr, isHelperPerQuad[q], access));
             }
             else if(val.base == quadLaneIndex)
             {
-              ops.add(rdcspv::OpStore(valPtr, quadIdxConst[q], alignedAccess));
+              ops.add(rdcspv::OpStore(valPtr, quadIdxConst[q], access));
             }
             else if(val.flat)
             {
-              ops.add(rdcspv::OpStore(valPtr, val.base, alignedAccess));
+              ops.add(rdcspv::OpStore(valPtr, val.base, access));
             }
             else
             {
               RDCASSERT(!val.quadSwizzledData.empty());
-              ops.add(rdcspv::OpStore(valPtr, val.quadSwizzledData[q], alignedAccess));
+              ops.add(rdcspv::OpStore(valPtr, val.quadSwizzledData[q], access));
             }
           }
 
@@ -5305,7 +5330,12 @@ static void CreateInputFetcher(rdcarray<uint32_t> &spv, const rdcarray<SpecConst
               ptrType, editor.MakeId(), outputPtr,
               {editor.AddConstantImmediate<uint32_t>((uint32_t)val.structIndex)}));
 
-          ops.add(rdcspv::OpStore(valPtr, val.base, alignedAccess));
+          const rdcspv::DataType &dataType = editor.GetDataType(val.type);
+          rdcspv::MemoryAccessAndParamDatas access = alignedAccess;
+          if(dataType.scalar().width == 8)
+            access = aligned8Access;
+
+          ops.add(rdcspv::OpStore(valPtr, val.base, access));
         }
       }
 
@@ -5396,6 +5426,62 @@ VkDescriptorSetLayoutBinding MakeNewBinding(VkShaderStageFlagBits stage)
   return {
       0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, NULL,
   };
+}
+
+static void ComputeSubgroupMasks(VulkanAPIWrapper *apiWrapper, uint32_t numThreads)
+{
+  rdcarray<std::unordered_map<ShaderBuiltin, ShaderVariable>> &allthread_builtins =
+      apiWrapper->GetThreadBuiltins();
+
+  uint32_t subgroupSize = apiWrapper->GetGlobalBuiltins()[ShaderBuiltin::SubgroupSize].value.u32v[0];
+
+  // Create the subgroup mask builtins (uvec4's)
+  for(uint32_t t = 0; t < numThreads; ++t)
+  {
+    if(apiWrapper->thread_props[t][(size_t)rdcspv::ThreadProperty::Active] == 0)
+      continue;
+
+    std::unordered_map<ShaderBuiltin, ShaderVariable> &thread_builtins = allthread_builtins[t];
+
+    uint32_t id = thread_builtins[ShaderBuiltin::IndexInSubgroup].value.u32v[0];
+
+    ShaderVariable &varEQ = thread_builtins[ShaderBuiltin::SubgroupEqualMask];
+    varEQ.rows = 1;
+    varEQ.columns = 4;
+    varEQ.type = VarType::UInt;
+    ShaderVariable &varGE = thread_builtins[ShaderBuiltin::SubgroupGreaterEqualMask];
+    varGE.rows = 1;
+    varGE.columns = 4;
+    varGE.type = VarType::UInt;
+    ShaderVariable &varGT = thread_builtins[ShaderBuiltin::SubgroupGreaterMask];
+    varGT.rows = 1;
+    varGT.columns = 4;
+    varGT.type = VarType::UInt;
+    ShaderVariable &varLE = thread_builtins[ShaderBuiltin::SubgroupLessEqualMask];
+    varLE.rows = 1;
+    varLE.columns = 4;
+    varLE.type = VarType::UInt;
+    ShaderVariable &varLT = thread_builtins[ShaderBuiltin::SubgroupLessMask];
+    varLT.rows = 1;
+    varLT.columns = 4;
+    varLT.type = VarType::UInt;
+
+    for(uint32_t i = 0; i < subgroupSize; ++i)
+    {
+      uint32_t idx = i / 32;
+      uint32_t mask = 1U << (i % 32);
+      if(i == id)
+        varEQ.value.u32v[idx] |= mask;
+      if(i >= id)
+        varGE.value.u32v[idx] |= mask;
+      if(i > id)
+        varGT.value.u32v[idx] |= mask;
+      if(i <= id)
+        varLE.value.u32v[idx] |= mask;
+      if(i < id)
+        varLT.value.u32v[idx] |= mask;
+    }
+  }
 }
 
 void VulkanReplay::CalculateSubgroupProperties(uint32_t &maxSubgroupSize,
@@ -5730,7 +5816,7 @@ ShaderDebugTrace *VulkanReplay::DebugVertex(uint32_t eventId, uint32_t vertid, u
 
     RDCASSERTMSG("Should only get one hit for vertex shaders", hit_count == 1, hit_count);
 
-    base += sizeof(Vec4f);
+    base += offsetof(rdcspv::ResultBaseBuffer, hits);
 
     rdcspv::ResultDataBase *winner = (rdcspv::ResultDataBase *)base;
 
@@ -6315,7 +6401,7 @@ ShaderDebugTrace *VulkanReplay::DebugPixel(uint32_t eventId, uint32_t x, uint32_
     hit_count = overdrawLevels;
   }
 
-  base += sizeof(Vec4f);
+  base += offsetof(rdcspv::ResultBaseBuffer, hits);
 
   rdcspv::ResultDataBase *winner = NULL;
 
@@ -6871,7 +6957,7 @@ ShaderDebugTrace *VulkanReplay::DebugComputeCommon(ShaderStage stage, uint32_t e
       hit_count = maxHits;
     }
 
-    base += sizeof(Vec4f);
+    base += offsetof(rdcspv::ResultBaseBuffer, hits);
 
     rdcspv::ResultDataBase *winner = (rdcspv::ResultDataBase *)base;
 
@@ -7106,6 +7192,8 @@ ShaderDebugTrace *VulkanReplay::DebugComputeCommon(ShaderStage stage, uint32_t e
     }
     global_builtins[ShaderBuiltin::SubgroupSize] = ShaderVariable(rdcstr(), subgroupSize, 0U, 0U, 0U);
 
+    ComputeSubgroupMasks(apiWrapper, numThreads);
+
     apiWrapper->SetInputVarsToReadOnly();
     ShaderDebugTrace *ret =
         debugger->BeginDebug(apiWrapper, stage, entryPoint, spec, shadRefl.instructionLines,
@@ -7223,6 +7311,8 @@ ShaderDebugTrace *VulkanReplay::DebugComputeCommon(ShaderStage stage, uint32_t e
     debugger->Parse(shader.spirv.GetSPIRV());
 
     global_builtins[ShaderBuiltin::SubgroupSize] = ShaderVariable(rdcstr(), 1U, 0U, 0U, 0U);
+
+    ComputeSubgroupMasks(apiWrapper, numThreads);
 
     apiWrapper->SetInputVarsToReadOnly();
     ShaderDebugTrace *ret =

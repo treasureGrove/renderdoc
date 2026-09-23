@@ -1491,6 +1491,12 @@ bool WrappedVulkan::Serialise_vkFlushMappedMemoryRanges(SerialiserType &ser, VkD
 
       it++;
     }
+
+    if(m_HasSubmit)
+    {
+      FlushQ();
+      m_HasSubmit = false;
+    }
   }
 
   if(directStream)
@@ -1727,6 +1733,9 @@ bool WrappedVulkan::Serialise_vkBindBufferMemory(SerialiserType &ser, VkDevice d
     // KHR variants now.
     if(bufInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
       TrackReplayBufferAddress(device, buffer, memory, memoryOffset);
+
+    bufInfo.boundMemory = memId;
+    bufInfo.boundMemoryOffset = memoryOffset;
 
     m_CreationInfo.m_Memory[GetResID(memory)].BindMemory(memoryOffset, mrq.size,
                                                          VulkanCreationInfo::Memory::Linear);
@@ -3527,6 +3536,9 @@ bool WrappedVulkan::Serialise_vkBindBufferMemory2(SerialiserType &ser, VkDevice 
       // KHR variants now.
       if(bufInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
         TrackReplayBufferAddress(device, bindInfo.buffer, bindInfo.memory, bindInfo.memoryOffset);
+
+      bufInfo.boundMemory = memId;
+      bufInfo.boundMemoryOffset = bindInfo.memoryOffset;
 
       // the memory is immediately dirty because we don't use dirty tracking, it's too expensive to
       // follow all frame refs in the background and it's pointless because memory almost always
