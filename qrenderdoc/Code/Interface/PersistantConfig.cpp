@@ -25,6 +25,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QMutexLocker>
 #include <QStandardPaths>
 #include "Code/QRDUtils.h"
@@ -470,6 +471,82 @@ PersistantConfig::~PersistantConfig()
   delete m_Legacy;
 }
 
+// Locates the fork's "Decompile to HLSL" wrapper script. Search order:
+//  1. RENDERDOC_DECOMPILE_SCRIPT environment variable
+//  2. <qrenderdoc dir>/decompile-tools/decompile_to_hlsl.ps1
+//  3. <qrenderdoc dir>/decompile_to_hlsl.ps1
+//  4. <qrenderdoc dir>/../../util/decompile-tools/decompile_to_hlsl.ps1 (source build layout)
+static QString FindDecompileToHlslScript()
+{
+  const QByteArray env = qgetenv("RENDERDOC_DECOMPILE_SCRIPT");
+  if(!env.isEmpty())
+  {
+    const QString p = QDir::fromNativeSeparators(QString::fromUtf8(env));
+    if(QFile::exists(p))
+      return p;
+  }
+
+  QDir appDir(QApplication::applicationDirPath());
+
+  QStringList candidates;
+  candidates << appDir.filePath(lit("decompile-tools/decompile_to_hlsl.ps1"));
+  candidates << appDir.filePath(lit("decompile_to_hlsl.ps1"));
+  candidates << appDir.filePath(lit("../../util/decompile-tools/decompile_to_hlsl.ps1"));
+  candidates << appDir.filePath(lit("../../../util/decompile-tools/decompile_to_hlsl.ps1"));
+  candidates << appDir.filePath(lit("../../../../util/decompile-tools/decompile_to_hlsl.ps1"));
+
+  for(const QString &c : candidates)
+  {
+    if(QFile::exists(c))
+      return c;
+  }
+
+  return QString();
+}
+
+// Registers the fork's "Decompile to HLSL" wrapper as custom ShaderProcessingTools.
+// The wrapper chains dxil-spirv + spirv-cross (and dxbc2dxil for DXBC) to recover
+// readable HLSL from captured D3D shaders. Skipped when the wrapper isn't present,
+// or when the user already configured these tools manually.
+static void RegisterDecompileToHlslTools(rdcarray<ShaderProcessingTool> &tools)
+{
+  const QString script = FindDecompileToHlslScript();
+  if(script.isEmpty())
+    return;
+
+  QString powershell = QStandardPaths::findExecutable(lit("powershell.exe"));
+  if(powershell.isEmpty())
+    powershell = QStandardPaths::findExecutable(lit("powershell"));
+  if(powershell.isEmpty())
+    return;
+
+  for(const ShaderProcessingTool &existing : tools)
+  {
+    if(QString(existing.name) == lit("Decompile to HLSL (DXIL)") ||
+       QString(existing.name) == lit("Decompile to HLSL (DXBC)"))
+      return;
+  }
+
+  const QString scriptArg = QDir::toNativeSeparators(script);
+  const QString cmdline =
+      QFormatStr("-NoProfile -ExecutionPolicy Bypass -File \"%1\" {input_file} {output_file}")
+          .arg(scriptArg);
+
+  auto addTool = [&tools, &cmdline](const rdcstr &name, ShaderEncoding input) {
+    ShaderProcessingTool s;
+    s.name = name;
+    s.executable = lit("powershell.exe");
+    s.args = cmdline;
+    s.input = input;
+    s.output = ShaderEncoding::HLSL;
+    s.tool = KnownShaderTool::Unknown;
+    tools.push_back(s);
+  };
+
+  addTool(lit("Decompile to HLSL (DXIL)"), ShaderEncoding::DXIL);
+  addTool(lit("Decompile to HLSL (DXBC)"), ShaderEncoding::DXBC);
+}
+
 bool PersistantConfig::Load(const rdcstr &filename)
 {
   bool ret = Deserialize(filename);
@@ -580,6 +657,9 @@ bool PersistantConfig::Load(const rdcstr &filename)
       continue;
     }
   }
+
+  // register the fork's "Decompile to HLSL" chain wrapper, if it's available
+  RegisterDecompileToHlslTools(ShaderProcessors);
 
   // sanitisation pass, if a tool is declared as a known type ensure its inputs/outputs are correct.
   // This is mostly for backwards compatibility with configs from before the inputs/outputs were

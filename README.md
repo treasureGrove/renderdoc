@@ -9,7 +9,7 @@
 ## Pipeline Agent 能做什么
 
 - 在 **Tools → Pipeline Agent**（或主工具区对应页签）中打开面板。
-- 选择 **Provider**（如 OpenAI、Anthropic、Gemini、Azure、OpenAI 兼容 URL、OpenRouter、智谱 GLM、GitHub Models 等），填写 **API Token**；**Model** 请从下拉项中选择各平台当前可用模型。
+- 选择 **Provider**（如 OpenAI、Anthropic、Gemini、Azure、OpenAI 兼容 URL、OpenRouter、智谱 GLM、GitHub Models、DeepSeek、阿里云百炼 Qwen、月之暗面 Kimi、百度千帆 ERNIE、火山引擎豆包 Doubao 等），填写 **API Token**；**Model** 请从下拉项中选择各平台当前可用模型。
 - 可选勾选 **Include shader disassembly**，在上下文中附带当前绑定阶段的反汇编（会走回放线程，可能略慢）。
 - 在底部输入框用自然语言提问（例如：梳理本帧渲染管线、某 Pass 在做什么）。模型在需要时可输出形如 **`[FETCH_EID nnnn]`**、**`[SCAN_PASS nnnn]`**、**`[LIST_EVENTS]`** 的指令，由本地面板自动取数并多轮续写。
 - 对话区支持滚动历史；回复里的 **`EID xxxx`** 可点击跳转到对应事件。
@@ -201,6 +201,20 @@ This is a **modern AAA game rendering pipeline** (likely using deferred renderin
 ````
 
 </details>
+
+---
+
+## Decompile to HLSL（D3D 着色器反编译）
+
+本分支在 RenderDoc 内集成了 **DXBC/DXIL → 可读 HLSL** 工具链，适用于 **Unity 等未保留原始 shader 源码** 的场景。安装外部工具后，在 **Pipeline State → Edit** 或 **Shader Viewer → Disassembly** 中即可选择 **Decompile to HLSL**。
+
+| 步骤 | 说明 |
+|------|------|
+| 编译本 fork | 见下方 [构建与运行](#构建与运行) |
+| 安装反编译工具 | `util\decompile-tools\setup.ps1`（需额外构建 `dxil-spirv`） |
+| 在 Capture 中反编译 | 打开 Shader Viewer → Disassembly → **Decompile to HLSL (DXIL)** |
+
+完整 **Setup / Usage / Troubleshooting** 见 [`util/decompile-tools/README.md`](util/decompile-tools/README.md)。
 
 ---
 

@@ -73,6 +73,11 @@ enum class AgentLLMBackend : int
   OpenRouter = 5,
   GLM_Zhipu = 6,
   GitHubModels = 7,
+  DeepSeek = 8,
+  DashScope = 9,    // Aliyun Bailian (Qwen)
+  Moonshot = 10,    // Moonshot AI (Kimi)
+  Qianfan = 11,     // Baidu Qianfan (ERNIE)
+  Volcano = 12,     // Volcano Engine Ark (Doubao)
 };
 
 // Bitmask: which data "skills" to attach to the LLM context for the current question (Pipeline Agent).
@@ -1477,6 +1482,11 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
   ui->providerCombo->addItem(lit("OpenRouter"), (int)AgentLLMBackend::OpenRouter);
   ui->providerCombo->addItem(lit("Zhipu GLM"), (int)AgentLLMBackend::GLM_Zhipu);
   ui->providerCombo->addItem(lit("GitHub Models"), (int)AgentLLMBackend::GitHubModels);
+  ui->providerCombo->addItem(lit("DeepSeek"), (int)AgentLLMBackend::DeepSeek);
+  ui->providerCombo->addItem(lit("Aliyun DashScope (Qwen)"), (int)AgentLLMBackend::DashScope);
+  ui->providerCombo->addItem(lit("Moonshot Kimi"), (int)AgentLLMBackend::Moonshot);
+  ui->providerCombo->addItem(lit("Baidu Qianfan (ERNIE)"), (int)AgentLLMBackend::Qianfan);
+  ui->providerCombo->addItem(lit("Volcano Ark (Doubao)"), (int)AgentLLMBackend::Volcano);
 
   m_activeLLMProvider = -1;
   loadSettingsFromConfig();
@@ -2341,7 +2351,7 @@ void AgentAssistantPanel::loadSettingsFromConfig()
 {
   PersistantConfig &cfg = m_Ctx.Config();
   int p = cfg.AgentAssistant_LLMProvider;
-  if(p < 0 || p > (int)AgentLLMBackend::GitHubModels)
+  if(p < 0 || p > (int)AgentLLMBackend::Volcano)
     p = 0;
   ui->providerCombo->blockSignals(true);
   ui->providerCombo->setCurrentIndex(p);
@@ -2377,6 +2387,21 @@ void AgentAssistantPanel::loadSettingsFromConfig()
       break;
     case AgentLLMBackend::GitHubModels:
       ui->apiTokenEdit->setText(rdcToQString(cfg.AgentAssistant_GitHubModelsApiKey));
+      break;
+    case AgentLLMBackend::DeepSeek:
+      ui->apiTokenEdit->setText(rdcToQString(cfg.AgentAssistant_DeepSeekApiKey));
+      break;
+    case AgentLLMBackend::DashScope:
+      ui->apiTokenEdit->setText(rdcToQString(cfg.AgentAssistant_DashScopeApiKey));
+      break;
+    case AgentLLMBackend::Moonshot:
+      ui->apiTokenEdit->setText(rdcToQString(cfg.AgentAssistant_MoonshotApiKey));
+      break;
+    case AgentLLMBackend::Qianfan:
+      ui->apiTokenEdit->setText(rdcToQString(cfg.AgentAssistant_QianfanApiKey));
+      break;
+    case AgentLLMBackend::Volcano:
+      ui->apiTokenEdit->setText(rdcToQString(cfg.AgentAssistant_VolcanoApiKey));
       break;
   }
 
@@ -2428,6 +2453,26 @@ void AgentAssistantPanel::saveSettingsToConfig()
       cfg.AgentAssistant_GitHubModelsApiKey = qstrToRdc(ui->apiTokenEdit->text());
       cfg.AgentAssistant_GitHubModelsModel = qstrToRdc(modelLine);
       break;
+    case AgentLLMBackend::DeepSeek:
+      cfg.AgentAssistant_DeepSeekApiKey = qstrToRdc(ui->apiTokenEdit->text());
+      cfg.AgentAssistant_DeepSeekModel = qstrToRdc(modelLine);
+      break;
+    case AgentLLMBackend::DashScope:
+      cfg.AgentAssistant_DashScopeApiKey = qstrToRdc(ui->apiTokenEdit->text());
+      cfg.AgentAssistant_DashScopeModel = qstrToRdc(modelLine);
+      break;
+    case AgentLLMBackend::Moonshot:
+      cfg.AgentAssistant_MoonshotApiKey = qstrToRdc(ui->apiTokenEdit->text());
+      cfg.AgentAssistant_MoonshotModel = qstrToRdc(modelLine);
+      break;
+    case AgentLLMBackend::Qianfan:
+      cfg.AgentAssistant_QianfanApiKey = qstrToRdc(ui->apiTokenEdit->text());
+      cfg.AgentAssistant_QianfanModel = qstrToRdc(modelLine);
+      break;
+    case AgentLLMBackend::Volcano:
+      cfg.AgentAssistant_VolcanoApiKey = qstrToRdc(ui->apiTokenEdit->text());
+      cfg.AgentAssistant_VolcanoModel = qstrToRdc(modelLine);
+      break;
   }
 
   cfg.Save();
@@ -2458,6 +2503,16 @@ void AgentAssistantPanel::updateProviderUi()
     ui->tokenLabel->setText(tr("GitHub PAT (models scope)"));
   else if((AgentLLMBackend)idx == AgentLLMBackend::GLM_Zhipu)
     ui->tokenLabel->setText(tr("GLM API key"));
+  else if((AgentLLMBackend)idx == AgentLLMBackend::DeepSeek)
+    ui->tokenLabel->setText(tr("DeepSeek API key"));
+  else if((AgentLLMBackend)idx == AgentLLMBackend::DashScope)
+    ui->tokenLabel->setText(tr("DashScope API key"));
+  else if((AgentLLMBackend)idx == AgentLLMBackend::Moonshot)
+    ui->tokenLabel->setText(tr("Moonshot API key"));
+  else if((AgentLLMBackend)idx == AgentLLMBackend::Qianfan)
+    ui->tokenLabel->setText(tr("Qianfan API key"));
+  else if((AgentLLMBackend)idx == AgentLLMBackend::Volcano)
+    ui->tokenLabel->setText(tr("Volcano Ark API key"));
   else
     ui->tokenLabel->setText(tr("API token"));
 }
@@ -2476,54 +2531,79 @@ void AgentAssistantPanel::repopulateModelCombo()
   switch((AgentLLMBackend)idx)
   {
     case AgentLLMBackend::OpenAI:
-      presets << lit("gpt-4.1") << lit("gpt-4.1-mini") << lit("gpt-4.1-nano") << lit("gpt-4o")
-              << lit("gpt-4o-mini") << lit("o4-mini") << lit("o3") << lit("o3-mini") << lit("o1")
-              << lit("o1-mini");
+      presets << lit("gpt-5.6-sol") << lit("gpt-5.6-terra") << lit("gpt-5.6-luna") << lit("gpt-5")
+              << lit("gpt-5-mini") << lit("gpt-5-nano") << lit("gpt-4.1") << lit("gpt-4.1-mini")
+              << lit("gpt-4.1-nano");
       saved = rdcToQString(cfg.AgentAssistant_OpenAIModel);
       break;
     case AgentLLMBackend::Anthropic:
-      presets << lit("claude-opus-4-6") << lit("claude-sonnet-4-6") << lit("claude-haiku-4-5")
-              << lit("claude-haiku-4-5-20251001") << lit("claude-sonnet-4-5-20250929")
-              << lit("claude-opus-4-5-20251101") << lit("claude-sonnet-4-20250514")
-              << lit("claude-opus-4-20250514") << lit("claude-3-7-sonnet-20250219")
-              << lit("claude-3-5-sonnet-20241022") << lit("claude-3-5-haiku-20241022");
+      presets << lit("claude-opus-5") << lit("claude-opus-4-8") << lit("claude-opus-4-7")
+              << lit("claude-opus-4-6") << lit("claude-sonnet-4-6") << lit("claude-haiku-4-5")
+              << lit("claude-haiku-4-5-20251001");
       saved = rdcToQString(cfg.AgentAssistant_AnthropicModel);
       break;
     case AgentLLMBackend::GoogleGemini:
-      presets << lit("gemini-2.5-pro") << lit("gemini-2.5-flash") << lit("gemini-2.5-flash-lite")
-              << lit("gemini-2.0-flash") << lit("gemini-2.0-flash-lite") << lit("gemini-1.5-pro")
-              << lit("gemini-1.5-flash");
+      presets << lit("gemini-3.6-flash") << lit("gemini-3.5-flash") << lit("gemini-3.5-flash-lite")
+              << lit("gemini-3.1-flash-lite") << lit("gemini-3.1-pro-preview")
+              << lit("gemini-3-flash-preview") << lit("gemini-2.5-pro") << lit("gemini-2.5-flash");
       saved = rdcToQString(cfg.AgentAssistant_GoogleModel);
       break;
     case AgentLLMBackend::AzureOpenAI: break;
     case AgentLLMBackend::OpenAICompatible:
-      presets << lit("gpt-4.1") << lit("gpt-4.1-mini") << lit("gpt-4o") << lit("gpt-4o-mini")
-              << lit("o4-mini") << lit("o3-mini") << lit("deepseek-chat") << lit("deepseek-reasoner");
+      presets << lit("gpt-5.6-sol") << lit("gpt-5.6-terra") << lit("gpt-5.6-luna") << lit("gpt-5")
+              << lit("gpt-5-mini") << lit("deepseek-v4-flash") << lit("deepseek-v4-pro")
+              << lit("qwen3.7-plus") << lit("qwen-max") << lit("glm-5.2") << lit("kimi-k3");
       saved = rdcToQString(cfg.AgentAssistant_OpenAIModel);
       break;
     case AgentLLMBackend::OpenRouter:
-      presets << lit("anthropic/claude-opus-4.6") << lit("anthropic/claude-sonnet-4.6")
-              << lit("anthropic/claude-haiku-4.5") << lit("anthropic/claude-3.7-sonnet")
-              << lit("openai/gpt-4.1") << lit("openai/gpt-4.1-mini") << lit("openai/gpt-4o")
-              << lit("openai/gpt-4o-mini") << lit("openai/o4-mini") << lit("google/gemini-2.5-pro")
-              << lit("google/gemini-2.5-flash") << lit("deepseek/deepseek-chat-v3-0324")
-              << lit("meta-llama/llama-3.3-70b-instruct")
-              << lit("mistralai/mistral-large-2411") << lit("qwen/qwen-2.5-72b-instruct");
+      presets << lit("openai/gpt-5.6-sol") << lit("openai/gpt-5.6-terra")
+              << lit("openai/gpt-5.6-luna") << lit("openai/gpt-5-mini") << lit("openai/gpt-4.1")
+              << lit("anthropic/claude-opus-4.8") << lit("anthropic/claude-sonnet-4.6")
+              << lit("anthropic/claude-haiku-4.5") << lit("google/gemini-3.6-flash")
+              << lit("google/gemini-3.5-flash") << lit("google/gemini-3.5-flash-lite")
+              << lit("deepseek/deepseek-v4-flash") << lit("deepseek/deepseek-v4-pro")
+              << lit("qwen/qwen3.7-plus") << lit("moonshotai/kimi-k3")
+              << lit("meta-llama/llama-3.3-70b-instruct") << lit("mistralai/mistral-large-2411");
       saved = rdcToQString(cfg.AgentAssistant_OpenRouterModel);
       break;
     case AgentLLMBackend::GLM_Zhipu:
-      presets << lit("glm-4.6") << lit("glm-4.5") << lit("glm-4-plus") << lit("glm-4-flash")
-              << lit("glm-4-air") << lit("glm-4-airx") << lit("glm-4-long");
+      presets << lit("glm-5.2") << lit("glm-5.1") << lit("glm-4.7") << lit("glm-4.6")
+              << lit("glm-4.5") << lit("glm-4-plus") << lit("glm-4-flash");
       saved = rdcToQString(cfg.AgentAssistant_GLMModel);
       break;
     case AgentLLMBackend::GitHubModels:
-      presets << lit("openai/gpt-4.1") << lit("openai/gpt-4.1-mini") << lit("openai/gpt-4.1-nano")
-              << lit("openai/gpt-4o") << lit("openai/gpt-4o-mini") << lit("openai/o4-mini")
-              << lit("openai/o3") << lit("openai/o3-mini") << lit("mistralai/Mistral-Large-2411")
-              << lit("mistralai/Mistral-Nemo-Instruct-2407")
-              << lit("meta-llama/Llama-3.3-70B-Instruct") << lit("deepseek/DeepSeek-V3-0324")
-              << lit("google/gemini-2.5-pro") << lit("google/gemini-2.5-flash");
+      presets << lit("openai/gpt-5.6-luna") << lit("openai/gpt-5.6-terra")
+              << lit("openai/gpt-5.6-sol") << lit("openai/gpt-5-mini") << lit("openai/gpt-4.1")
+              << lit("mistralai/Mistral-Large-2411") << lit("meta-llama/Llama-3.3-70B-Instruct")
+              << lit("deepseek/DeepSeek-V3-0324") << lit("google/gemini-3.6-flash")
+              << lit("google/gemini-3.5-flash");
       saved = rdcToQString(cfg.AgentAssistant_GitHubModelsModel);
+      break;
+    case AgentLLMBackend::DeepSeek:
+      presets << lit("deepseek-v4-flash") << lit("deepseek-v4-pro");
+      saved = rdcToQString(cfg.AgentAssistant_DeepSeekModel);
+      break;
+    case AgentLLMBackend::DashScope:
+      presets << lit("qwen3.8-max") << lit("qwen3.7-plus") << lit("qwen3.7-flash")
+              << lit("qwen-max") << lit("qwen-plus") << lit("qwen-turbo") << lit("qwen-long");
+      saved = rdcToQString(cfg.AgentAssistant_DashScopeModel);
+      break;
+    case AgentLLMBackend::Moonshot:
+      presets << lit("kimi-k3") << lit("kimi-k2.7-code") << lit("kimi-k2.6")
+              << lit("moonshot-v1-128k");
+      saved = rdcToQString(cfg.AgentAssistant_MoonshotModel);
+      break;
+    case AgentLLMBackend::Qianfan:
+      presets << lit("ernie-4.0-turbo-8k") << lit("ernie-4.0-8k") << lit("ernie-3.5-8k")
+              << lit("ernie-3.5-turbo-8k");
+      saved = rdcToQString(cfg.AgentAssistant_QianfanModel);
+      break;
+    case AgentLLMBackend::Volcano:
+      presets << lit("doubao-seed-2.1-pro") << lit("doubao-seed-2.1-turbo")
+              << lit("doubao-seed-2.0-pro") << lit("doubao-seed-2.0-lite")
+              << lit("doubao-seed-2.0-mini") << lit("doubao-seed-2.0-code")
+              << lit("doubao-seed-1.8") << lit("doubao-seed-1.6") << lit("doubao-seed-1.6-flash");
+      saved = rdcToQString(cfg.AgentAssistant_VolcanoModel);
       break;
   }
 
@@ -2584,6 +2664,26 @@ void AgentAssistantPanel::onProviderChanged(int idx)
       case AgentLLMBackend::GitHubModels:
         cfg.AgentAssistant_GitHubModelsApiKey = qstrToRdc(tok);
         cfg.AgentAssistant_GitHubModelsModel = qstrToRdc(mdl);
+        break;
+      case AgentLLMBackend::DeepSeek:
+        cfg.AgentAssistant_DeepSeekApiKey = qstrToRdc(tok);
+        cfg.AgentAssistant_DeepSeekModel = qstrToRdc(mdl);
+        break;
+      case AgentLLMBackend::DashScope:
+        cfg.AgentAssistant_DashScopeApiKey = qstrToRdc(tok);
+        cfg.AgentAssistant_DashScopeModel = qstrToRdc(mdl);
+        break;
+      case AgentLLMBackend::Moonshot:
+        cfg.AgentAssistant_MoonshotApiKey = qstrToRdc(tok);
+        cfg.AgentAssistant_MoonshotModel = qstrToRdc(mdl);
+        break;
+      case AgentLLMBackend::Qianfan:
+        cfg.AgentAssistant_QianfanApiKey = qstrToRdc(tok);
+        cfg.AgentAssistant_QianfanModel = qstrToRdc(mdl);
+        break;
+      case AgentLLMBackend::Volcano:
+        cfg.AgentAssistant_VolcanoApiKey = qstrToRdc(tok);
+        cfg.AgentAssistant_VolcanoModel = qstrToRdc(mdl);
         break;
     }
     cfg.AgentAssistant_AzureEndpoint = qstrToRdc(ui->azureEndpointEdit->text().trimmed());
@@ -2933,6 +3033,46 @@ void AgentAssistantPanel::sendToLLM()
       req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
       break;
     }
+    case AgentLLMBackend::DeepSeek:
+    {
+      url = QUrl(lit("https://api.deepseek.com/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DeepSeekModel).trimmed(), userBody);
+      setJsonContent();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    }
+    case AgentLLMBackend::DashScope:
+    {
+      url = QUrl(lit("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DashScopeModel).trimmed(), userBody);
+      setJsonContent();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    }
+    case AgentLLMBackend::Moonshot:
+    {
+      url = QUrl(lit("https://api.moonshot.cn/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_MoonshotModel).trimmed(), userBody);
+      setJsonContent();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    }
+    case AgentLLMBackend::Qianfan:
+    {
+      url = QUrl(lit("https://qianfan.baidubce.com/v2/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_QianfanModel).trimmed(), userBody);
+      setJsonContent();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    }
+    case AgentLLMBackend::Volcano:
+    {
+      url = QUrl(lit("https://ark.cn-beijing.volces.com/api/v3/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_VolcanoModel).trimmed(), userBody);
+      setJsonContent();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    }
   }
 
   req.setUrl(url);
@@ -3013,6 +3153,11 @@ void AgentAssistantPanel::onLLMFinished()
     case AgentLLMBackend::OpenRouter:
     case AgentLLMBackend::GLM_Zhipu:
     case AgentLLMBackend::GitHubModels:
+    case AgentLLMBackend::DeepSeek:
+    case AgentLLMBackend::DashScope:
+    case AgentLLMBackend::Moonshot:
+    case AgentLLMBackend::Qianfan:
+    case AgentLLMBackend::Volcano:
       text = extractOpenAIStyleText(root, err);
       break;
     case AgentLLMBackend::Anthropic: text = extractAnthropicText(root, err); break;
@@ -3491,6 +3636,36 @@ void AgentAssistantPanel::sendLLMRequestRaw(const QString &userBody)
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       req.setRawHeader("Accept", "application/vnd.github+json");
       req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+      break;
+    case AgentLLMBackend::DeepSeek:
+      url = QUrl(lit("https://api.deepseek.com/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DeepSeekModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    case AgentLLMBackend::DashScope:
+      url = QUrl(lit("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DashScopeModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    case AgentLLMBackend::Moonshot:
+      url = QUrl(lit("https://api.moonshot.cn/v1/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_MoonshotModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    case AgentLLMBackend::Qianfan:
+      url = QUrl(lit("https://qianfan.baidubce.com/v2/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_QianfanModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
+      break;
+    case AgentLLMBackend::Volcano:
+      url = QUrl(lit("https://ark.cn-beijing.volces.com/api/v3/chat/completions"));
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_VolcanoModel).trimmed(), body);
+      setJson();
+      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
   }
 

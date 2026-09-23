@@ -706,7 +706,9 @@ DECLARE_REFLECTION_STRUCT(BugReport);
                                                                                                    \
   DOCUMENT(                                                                                        \
       "Pipeline Agent: LLM backend. 0=OpenAI, 1=Anthropic, 2=Google Gemini, 3=Azure OpenAI, "       \
-      "4=OpenAI-compatible (custom base URL), 5=OpenRouter, 6=Zhipu GLM, 7=GitHub Models.\n"       \
+      "4=OpenAI-compatible (custom base URL), 5=OpenRouter, 6=Zhipu GLM, 7=GitHub Models, "          \
+      "8=DeepSeek, 9=Aliyun DashScope (Qwen), 10=Moonshot Kimi, 11=Baidu Qianfan (ERNIE), "          \
+      "12=Volcano Ark (Doubao).\n"                                                                \
       "\n:"                                                                                        \
       "type: int");                                                                                \
   CONFIG_SETTING_VAL(public, int, int, AgentAssistant_LLMProvider, 0)                              \
@@ -722,6 +724,11 @@ DECLARE_REFLECTION_STRUCT(BugReport);
   CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenRouterApiKey, "")                 \
   CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GLMApiKey, "")                        \
   CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GitHubModelsApiKey, "")               \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_DeepSeekApiKey, "")                   \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_DashScopeApiKey, "")                  \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_MoonshotApiKey, "")                   \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_QianfanApiKey, "")                    \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_VolcanoApiKey, "")                    \
                                                                                                    \
   DOCUMENT("Pipeline Agent: Azure OpenAI endpoint, e.g. https://myresource.openai.azure.com\n"     \
            "\n:"                                                                                   \
@@ -736,20 +743,32 @@ DECLARE_REFLECTION_STRUCT(BugReport);
                        "https://api.openai.com")                                                   \
                                                                                                    \
   DOCUMENT("Pipeline Agent: model id for OpenAI chat completions.\n" "\n:" "type: str");          \
-  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenAIModel, "gpt-4o-mini")           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenAIModel, "gpt-5.6-luna")           \
   DOCUMENT("Pipeline Agent: model id for Anthropic messages.\n" "\n:" "type: str");              \
-  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AnthropicModel,                       \
-                       "claude-3-5-sonnet-20241022")                                               \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_AnthropicModel,                        \
+                       "claude-sonnet-4-6")                                                        \
   DOCUMENT("Pipeline Agent: Gemini model id.\n" "\n:" "type: str");                                \
-  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GoogleModel, "gemini-1.5-flash")      \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GoogleModel, "gemini-3.5-flash")      \
   DOCUMENT("Pipeline Agent: OpenRouter model slug (e.g. anthropic/claude-3.5-sonnet).\n" "\n:"      \
            "type: str");                                                                           \
-  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenRouterModel,                     \
-                       "anthropic/claude-3.5-sonnet")                                              \
-  DOCUMENT("Pipeline Agent: Zhipu GLM model id (e.g. glm-4-flash).\n" "\n:" "type: str");          \
-  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GLMModel, "glm-4-flash")              \
-  DOCUMENT("Pipeline Agent: GitHub Models model id (e.g. openai/gpt-4o-mini).\n" "\n:" "type: str"); \
-  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GitHubModelsModel, "openai/gpt-4o-mini") \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_OpenRouterModel,                       \
+                       "anthropic/claude-sonnet-4.6")                                              \
+  DOCUMENT("Pipeline Agent: Zhipu GLM model id (e.g. glm-5.2).\n" "\n:" "type: str");               \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GLMModel, "glm-5.2")                   \
+  DOCUMENT("Pipeline Agent: GitHub Models model id (e.g. openai/gpt-5.6-luna).\n" "\n:" "type: str"); \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_GitHubModelsModel, "openai/gpt-5.6-luna") \
+  DOCUMENT("Pipeline Agent: DeepSeek model id (e.g. deepseek-v4-flash).\n" "\n:" "type: str");       \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_DeepSeekModel, "deepseek-v4-flash")   \
+  DOCUMENT("Pipeline Agent: Aliyun DashScope (Qwen) model id (e.g. qwen3.7-plus).\n" "\n:" "type: str"); \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_DashScopeModel, "qwen3.7-plus")       \
+  DOCUMENT("Pipeline Agent: Moonshot Kimi model id (e.g. kimi-k3).\n" "\n:" "type: str");           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_MoonshotModel, "kimi-k3")             \
+  DOCUMENT("Pipeline Agent: Baidu Qianfan (ERNIE) model id (e.g. ernie-4.0-turbo-8k).\n" "\n:"      \
+           "type: str");                                                                           \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_QianfanModel, "ernie-4.0-turbo-8k")   \
+  DOCUMENT("Pipeline Agent: Volcano Ark (Doubao) model/deployment id.\n" "\n:" "type: str");       \
+  CONFIG_SETTING_VAL(public, QString, rdcstr, AgentAssistant_VolcanoModel,                          \
+                       "doubao-seed-2.1-turbo")                                                     \
                                                                                                    \
   DOCUMENT(                                                                                        \
       "``True`` if Pipeline Agent should attach RenderDoc shader disassembly for bound stages "    \
