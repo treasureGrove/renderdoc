@@ -1,0 +1,7 @@
+{
+  "extension_api": 1,
+  "name": "RenderDoc MCP Bridge",
+  "version": "0.1.0",
+  "description": "Exposes the running qrenderdoc instance to external AI clients over a localhost TCP bridge (see util/mcp-server). Pairs with the standalone rd_mcp.py MCP stdio server.",
+  "author": "TRenderDoc"
+}

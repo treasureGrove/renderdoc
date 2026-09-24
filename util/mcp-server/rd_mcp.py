@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""RenderDoc MCP server (stdio).
+
+Zero-dependency Model Context Protocol server that bridges to a running
+qrenderdoc instance via the rd_mcp_bridge.py extension (localhost TCP).
+
+Run it as an MCP server in your AI client, e.g. for ZCode / Claude Code:
+
+    {
+      "mcpServers": {
+        "renderdoc": {
+          "command": "python",
+          "args": ["<repo>/util/mcp-server/rd_mcp.py"]
+        }
+      }
+    }
+
+MCP stdio framing here is newline-delimited JSON-RPC 2.0, which is what the
+protocol expects on stdio. No third-party packages are required.
+"""
+
+import json
+import os
+import socket
+import sys
+
+HOST = "127.0.0.1"
+PORT = int(os.environ.get("RD_MCP_PORT", "39944"))
+PROTOCOL_VERSION = "2024-11-05"
+
+TOOLS = [
+    {
+        "name": "capture_info",
+        "description": (
+            "Get info about the capture currently loaded in the running RenderDoc GUI: "
+            "filename, graphics API, current event ID and action counts. Cheap call - "
+            "start here to check the bridge is alive and a capture is loaded."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "list_events",
+        "description": (
+            "Return the frame event tree of the loaded capture as indented text: markers, "
+            "draw calls, dispatches, clears, copies and presents with their EIDs. Use first "
+            "when analysing the rendering pipeline, then fetch_eid on interesting draws."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "max_depth": {
+                    "type": "integer",
+                    "description": "How deep to descend the marker hierarchy (default 4).",
+                    "default": 4,
+                },
+                "max_lines": {
+                    "type": "integer",
+                    "description": "Maximum number of tree lines returned (default 3000).",
+                    "default": 3000,
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "fetch_eid",
+        "description": (
+            "Switch the RenderDoc UI to the given event ID and return a summary: action "
+            "name, draw/dispatch parameters, bound colour outputs and depth buffer with "
+            "their dimensions and formats."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "eid": {"type": "integer", "description": "The event ID to inspect."}
+            },
+            "required": ["eid"],
+        },
+    },
+    {
+        "name": "get_texture",
+        "description": (
+            "Save the colour outputs (and depth buffer) of the given event as PNG files on "
+            "disk and return their paths. Renders through the replay thread. You can then "
+            "read the PNG files to visually inspect the frame."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "eid": {
+                    "type": "integer",
+                    "description": "Event ID to grab (default: the current event).",
+                },
+                "dest_dir": {
+                    "type": "string",
+                    "description": "Directory to write PNGs into (default: system temp).",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "run_python",
+        "description": (
+            "Execute arbitrary python code inside the RenderDoc GUI (UI thread) and return "
+            "its stdout/stderr. Globals available: pyrenderdoc (the CaptureContext), "
+            "renderdoc, qrenderdoc. Set a variable named 'result' to return a value. Use "
+            "for anything the dedicated tools cannot express."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Python source code to execute."}
+            },
+            "required": ["code"],
+        },
+    },
+]
+
+
+def call_bridge(tool, args, timeout):
+    sock = socket.create_connection((HOST, PORT), timeout=3)
+    try:
+        sock.settimeout(timeout)
+        f = sock.makefile("rwb")
+        req = {"id": 1, "tool": tool, "args": args}
+        f.write((json.dumps(req) + "\n").encode("utf-8"))
+        f.flush()
+        line = f.readline()
+        if not line:
+            raise RuntimeError("bridge closed the connection without responding")
+        resp = json.loads(line.decode("utf-8"))
+        if not resp.get("ok"):
+            raise RuntimeError(str(resp.get("error", "unknown bridge error")))
+        return resp.get("result")
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+
+
+def tool_text_result(text, is_error=False):
+    result = {"content": [{"type": "text", "text": text}]}
+    if is_error:
+        result["isError"] = True
+    return result
+
+
+def handle_request(req):
+    method = req.get("method", "")
+    rid = req.get("id")
+
+    if method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": rid,
+            "result": {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "renderdoc-mcp", "version": "0.1.0"},
+            },
+        }
+
+    if method == "ping":
+        return {"jsonrpc": "2.0", "id": rid, "result": {}}
+
+    if method == "tools/list":
+        return {"jsonrpc": "2.0", "id": rid, "result": {"tools": TOOLS}}
+
+    if method == "tools/call":
+        params = req.get("params") or {}
+        name = str(params.get("name", ""))
+        args = dict(params.get("arguments") or {})
+        if name == "run_python":
+            timeout = float(args.pop("timeout", 120) or 120)
+        else:
+            timeout = 60.0
+        try:
+            result = call_bridge(name, args, timeout)
+            text = json.dumps(result, ensure_ascii=False, indent=2)
+            return {"jsonrpc": "2.0", "id": rid, "result": tool_text_result(text)}
+        except Exception as e:
+            text = (
+                "RenderDoc bridge error: %s\n\nMake sure qrenderdoc is running with the "
+                "rd_mcp_bridge.py extension loaded (see util/mcp-server/README.md)." % e
+            )
+            return {"jsonrpc": "2.0", "id": rid, "result": tool_text_result(text, True)}
+
+    if method.startswith("notifications/"):
+        return None
+
+    if rid is None:
+        return None
+    return {
+        "jsonrpc": "2.0",
+        "id": rid,
+        "error": {"code": -32601, "message": "method not found: %s" % method},
+    }
+
+
+def main():
+    for raw in sys.stdin.buffer:
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line.decode("utf-8"))
+        except Exception:
+            continue
+        resp = handle_request(req)
+        if resp is None:
+            continue
+        sys.stdout.buffer.write((json.dumps(resp) + "\n").encode("utf-8"))
+        sys.stdout.buffer.flush()
+
+
+if __name__ == "__main__":
+    main()

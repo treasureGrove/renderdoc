@@ -221,6 +221,21 @@ This is a **modern AAA game rendering pipeline** (likely using deferred renderin
 
 ---
 
+## MCP Server（外部 AI 客户端接入）
+
+通过 **MCP（Model Context Protocol）** 把运行中的 qrenderdoc 暴露给 ZCode / Claude Code 等
+AI 客户端：`capture_info` / `list_events` / `fetch_eid` / `get_texture` / `run_python` 五个工具，
+让 AI 直接分析抓到的帧、保存渲染目标截图、执行任意 python。
+
+```powershell
+# 一键安装 qrenderdoc 内的桥接扩展，再到 Tools → Manage Extensions 启用
+powershell -ExecutionPolicy Bypass -File util\mcp-server\install.ps1
+```
+
+架构与客户端配置见 [`util/mcp-server/README.md`](util/mcp-server/README.md)。
+
+---
+
 ## 构建与运行
 
 从源码编译方式与上游一致，请参阅 [`docs/CONTRIBUTING/Compiling.md`](docs/CONTRIBUTING/Compiling.md)。Windows 下通常使用 Visual Studio 打开生成目录中的解决方案并按说明配置 Qt 等依赖。
