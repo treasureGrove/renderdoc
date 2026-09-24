@@ -53,6 +53,8 @@ public:
 
   QWidget *Widget() override { return this; }
 
+  void AnalyzeShaderText(const rdcstr &shaderTitle, const rdcstr &shaderText) override;
+
   void OnCaptureLoaded() override;
   void OnCaptureClosed() override;
   void OnSelectedEventChanged(uint32_t eventId) override;
@@ -77,6 +79,7 @@ private slots:
   void onSearchNext();
   void onSearchClose();
   void onSearchToggle();
+  void exportReport();
 
 private:
   Ui::AgentAssistantPanel *ui;
@@ -113,6 +116,19 @@ private:
   static const int kMaxToolUseRounds = 15;
   QString m_lastUserQuestion;
   uint32_t m_preToolEID = 0;
+
+  // Shader text queued from AnalyzeShaderText(), consumed by the next sendToLLM().
+  QString m_pendingAnalyzeTitle;
+  QString m_pendingAnalyzeText;
+
+  struct ThumbData
+  {
+    QString label;
+    QByteArray png;
+  };
+  QVector<ThumbData> grabThumbImages();
+  QJsonArray thumbnailsToApiParts(const QVector<ThumbData> &thumbs);
+  QString lastAssistantMessage() const;
 
   void rebuildSnapshot();
   QString formatPipelineSnapshot();

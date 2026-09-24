@@ -24,8 +24,12 @@
 
 #include "AgentAssistantPanel.h"
 #include <QClipboard>
+#include <QBuffer>
 #include <QComboBox>
+#include <QDateTime>
+#include <QImage>
 #include <QLineEdit>
+#include <QStandardPaths>
 #include <QStringList>
 #include <initializer_list>
 #include <cstdint>
@@ -1539,6 +1543,50 @@ static QJsonArray anthropicMessagesFromCanonical(const QJsonArray &msgs)
       out.append(am);
       continue;
     }
+    if(role == lit("user"))
+    {
+      QJsonObject um;
+      um[lit("role")] = lit("user");
+      QJsonValue cval = m[lit("content")];
+      if(cval.isString())
+      {
+        um[lit("content")] = cval;
+      }
+      else if(cval.isArray())
+      {
+        QJsonArray blocks;
+        for(const QJsonValue &pv : cval.toArray())
+        {
+          QJsonObject part = pv.toObject();
+          if(part[lit("type")].toString() == lit("text"))
+          {
+            QJsonObject b;
+            b[lit("type")] = lit("text");
+            b[lit("text")] = part[lit("text")];
+            blocks.append(b);
+          }
+          else if(part[lit("type")].toString() == lit("image_url"))
+          {
+            QString url = part[lit("image_url")].toObject()[lit("url")].toString();
+            const QString prefix = lit("data:image/png;base64,");
+            if(url.startsWith(prefix))
+            {
+              QJsonObject src;
+              src[lit("type")] = lit("base64");
+              src[lit("media_type")] = lit("image/png");
+              src[lit("data")] = url.mid(prefix.size());
+              QJsonObject b;
+              b[lit("type")] = lit("image");
+              b[lit("source")] = src;
+              blocks.append(b);
+            }
+          }
+        }
+        um[lit("content")] = blocks;
+      }
+      out.append(um);
+      continue;
+    }
     out.append(m);
   }
   flushToolResults();
@@ -1558,12 +1606,39 @@ static QJsonArray geminiContentsFromCanonical(const QJsonArray &msgs)
     turn[lit("role")] =
         (role == lit("assistant")) ? QJsonValue(lit("model")) : QJsonValue(lit("user"));
     QJsonArray parts;
-    QString txt = m[lit("content")].toString();
-    if(!txt.isEmpty())
+    QJsonValue cval = m[lit("content")];
+    if(cval.isString() && !cval.toString().isEmpty())
     {
       QJsonObject tp;
-      tp[lit("text")] = txt;
+      tp[lit("text")] = cval;
       parts.append(tp);
+    }
+    else if(cval.isArray())
+    {
+      for(const QJsonValue &pv : cval.toArray())
+      {
+        QJsonObject part = pv.toObject();
+        if(part[lit("type")].toString() == lit("text"))
+        {
+          QJsonObject tp;
+          tp[lit("text")] = part[lit("text")];
+          parts.append(tp);
+        }
+        else if(part[lit("type")].toString() == lit("image_url"))
+        {
+          QString url = part[lit("image_url")].toObject()[lit("url")].toString();
+          const QString prefix = lit("data:image/png;base64,");
+          if(url.startsWith(prefix))
+          {
+            QJsonObject idata;
+            idata[lit("mime_type")] = lit("image/png");
+            idata[lit("data")] = url.mid(prefix.size());
+            QJsonObject ip;
+            ip[lit("inline_data")] = idata;
+            parts.append(ip);
+          }
+        }
+      }
     }
     if(role == lit("assistant"))
     {
@@ -1877,6 +1952,10 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
 
   QObject::connect(ui->includeDisasmCheck, &QCheckBox::stateChanged, this,
                    &AgentAssistantPanel::onPersistConnectionFields);
+  QObject::connect(ui->includeThumbsCheck, &QCheckBox::stateChanged, this,
+                   &AgentAssistantPanel::onPersistConnectionFields);
+  QObject::connect(ui->exportReportButton, &QPushButton::clicked, this,
+                   &AgentAssistantPanel::exportReport);
 
   if(ui->questionEdit)
   {
@@ -2722,6 +2801,7 @@ void AgentAssistantPanel::loadSettingsFromConfig()
   ui->azureDeploymentEdit->setText(rdcToQString(cfg.AgentAssistant_AzureDeployment));
   ui->compatibleBaseUrlEdit->setText(rdcToQString(cfg.AgentAssistant_CompatibleBaseUrl));
   ui->includeDisasmCheck->setChecked(cfg.AgentAssistant_IncludeShaderDisassembly);
+  ui->includeThumbsCheck->setChecked(cfg.AgentAssistant_IncludeTextureThumbs);
 
   switch((AgentLLMBackend)p)
   {
@@ -2780,6 +2860,7 @@ void AgentAssistantPanel::saveSettingsToConfig()
   cfg.AgentAssistant_AzureDeployment = qstrToRdc(ui->azureDeploymentEdit->text().trimmed());
   cfg.AgentAssistant_CompatibleBaseUrl = qstrToRdc(ui->compatibleBaseUrlEdit->text().trimmed());
   cfg.AgentAssistant_IncludeShaderDisassembly = ui->includeDisasmCheck->isChecked();
+  cfg.AgentAssistant_IncludeTextureThumbs = ui->includeThumbsCheck->isChecked();
 
   switch((AgentLLMBackend)p)
   {
@@ -3259,12 +3340,26 @@ void AgentAssistantPanel::sendToLLM()
     userBody += lit("\n\n") + eventTree;
   if(!shaderBlock.isEmpty())
     userBody += lit("\n\n") + shaderBlock;
+  if(!m_pendingAnalyzeText.isEmpty())
+  {
+    userBody += lit("\n\n=== Shader to analyse: ") + m_pendingAnalyzeTitle + lit(" ===\n") +
+                m_pendingAnalyzeText;
+    m_pendingAnalyzeTitle.clear();
+    m_pendingAnalyzeText.clear();
+  }
   userBody += lit("\nUser question:\n") + question;
   const int kMaxUserBodyChars = 450000;
   if(userBody.size() > kMaxUserBodyChars)
   {
     userBody.truncate(kMaxUserBodyChars);
     userBody += lit("\n\n[Total message truncated for API/request size limits.]\n");
+  }
+
+  QVector<ThumbData> thumbs;
+  if(ui->includeThumbsCheck->isChecked() && m_Ctx.IsCaptureLoaded())
+  {
+    setStatusText(tr("Grabbing texture thumbnails..."));
+    thumbs = grabThumbImages();
   }
 
   m_apiMessages = QJsonArray();
@@ -3276,7 +3371,22 @@ void AgentAssistantPanel::sendToLLM()
     m_apiMessages.append(v);
   QJsonObject u;
   u[lit("role")] = lit("user");
-  u[lit("content")] = userBody;
+  if(thumbs.isEmpty())
+  {
+    u[lit("content")] = userBody;
+  }
+  else
+  {
+    QJsonArray content;
+    QJsonObject tp;
+    tp[lit("type")] = lit("text");
+    tp[lit("text")] = userBody;
+    content.append(tp);
+    for(const QJsonValue &v : thumbnailsToApiParts(thumbs))
+      content.append(v);
+    u[lit("content")] = content;
+    appendChatMessage(false, tr("Attached %1 texture thumbnail(s).").arg(thumbs.count()));
+  }
   m_apiMessages.append(u);
 
   m_toolUseRound = 0;
@@ -3999,4 +4109,188 @@ void AgentAssistantPanel::appendTurnToHistory(const QString &question, const QSt
   m_apiHistory.append(a);
   while(m_apiHistory.size() > 8)
     m_apiHistory.removeAt(0);
+}
+
+void AgentAssistantPanel::AnalyzeShaderText(const rdcstr &shaderTitle, const rdcstr &shaderText)
+{
+  m_pendingAnalyzeTitle = rdcToQString(shaderTitle);
+  m_pendingAnalyzeText = rdcToQString(shaderText);
+  m_Ctx.ShowAgentAssistant();
+  ui->questionEdit->setText(tr("What is this shader doing? What visual effect does it achieve?"));
+}
+
+QVector<AgentAssistantPanel::ThumbData> AgentAssistantPanel::grabThumbImages()
+{
+  QVector<ThumbData> ret;
+  if(!m_Ctx.IsCaptureLoaded())
+    return ret;
+
+  struct ThumbJob
+  {
+    ResourceId id;
+    QString label;
+  };
+  QVector<ThumbJob> jobs;
+  rdcarray<Descriptor> outputs = m_Ctx.CurPipelineState().GetOutputTargets();
+  for(int32_t i = 0; i < outputs.count() && jobs.count() < 4; i++)
+    jobs.push_back({outputs[i].resource, QStringLiteral("output_%1").arg(jobs.count() + 1)});
+  Descriptor depth = m_Ctx.CurPipelineState().GetDepthTarget();
+  if(depth.resource != ResourceId())
+    jobs.push_back({depth.resource, lit("depth")});
+
+  if(jobs.isEmpty())
+    return ret;
+
+  const QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+  for(const ThumbJob &job : jobs)
+  {
+    const QString path = tmpDir + QStringLiteral("/renderdoc_agent_%1.png").arg(job.label);
+    m_Ctx.Replay().BlockInvoke(
+        [&job, &path](IReplayController *r) {
+          TextureSave save;
+          save.resourceId = job.id;
+          save.destType = FileType::PNG;
+          save.mip = 0;
+          r->SaveTexture(save, path.toUtf8().constData());
+        });
+
+    QImage img(path);
+    QFile::remove(path);
+    if(img.isNull())
+      continue;
+    if(img.width() > 512 || img.height() > 512)
+      img = img.scaled(512, 512, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    QByteArray png;
+    QBuffer buf(&png);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "PNG");
+    if(png.isEmpty() || png.size() > 2 * 1024 * 1024)
+      continue;
+
+    ret.push_back({job.label, png});
+  }
+  return ret;
+}
+
+QJsonArray AgentAssistantPanel::thumbnailsToApiParts(const QVector<ThumbData> &thumbs)
+{
+  QJsonArray parts;
+  for(const ThumbData &t : thumbs)
+  {
+    QJsonObject urlObj;
+    urlObj[lit("url")] = lit("data:image/png;base64,") + QString::fromUtf8(t.png.toBase64());
+    QJsonObject imgObj;
+    imgObj[lit("type")] = lit("image_url");
+    imgObj[lit("image_url")] = urlObj;
+    parts.append(imgObj);
+  }
+  return parts;
+}
+
+QString AgentAssistantPanel::lastAssistantMessage() const
+{
+  for(int i = m_chatHistory.count() - 1; i >= 0; i--)
+  {
+    if(!m_chatHistory[i].isUser)
+      return m_chatHistory[i].text;
+  }
+  return QString();
+}
+
+void AgentAssistantPanel::exportReport()
+{
+  if(!m_Ctx.IsCaptureLoaded())
+  {
+    QMessageBox::information(this, tr("Pipeline Agent"), tr("Load a capture first."));
+    return;
+  }
+
+  QString path = RDDialog::getSaveFileName(this, tr("Export analysis report"),
+                                           lit("renderdoc_report.md"), tr("Markdown (*.md)"));
+  if(path.isEmpty())
+    return;
+
+  setCursor(Qt::WaitCursor);
+
+  QString md;
+  md += lit("# RenderDoc Capture Analysis\n\n");
+  md += lit("- Capture: `%1`\n").arg(rdcToQString(m_Ctx.GetCaptureFilename()));
+  md += lit("- Current EID: %1\n").arg(m_Ctx.CurEvent());
+  md += lit("- Exported: %1\n\n").arg(QDateTime::currentDateTime().toString(Qt::ISODate));
+
+  md += lit("## Event tree\n\n```text\n%1\n```\n\n").arg(formatEventTree());
+
+  md += lit("## Top-level passes\n\n");
+  const rdcarray<ActionDescription> &roots = m_Ctx.CurRootActions();
+  int passCount = 0;
+  for(const ActionDescription &a : roots)
+  {
+    if(a.children.empty())
+      continue;
+    if(++passCount > 12)
+    {
+      md += lit("\n_(further passes omitted)_\n");
+      break;
+    }
+    QString name = QString::fromUtf8(a.customName.c_str());
+    if(name.isEmpty())
+      name = QStringLiteral("pass");
+    md += lit("### %1 (EID %2)\n\n```text\n%3\n```\n\n")
+              .arg(name)
+              .arg(a.eventId)
+              .arg(scanPassSummary(a.eventId));
+  }
+  if(passCount == 0)
+    md += lit("_No marker passes at the top level._\n\n");
+
+  QString snap = ui->snapshotEdit->toPlainText();
+  if(snap.size() > 200000)
+  {
+    snap.truncate(200000);
+    snap += lit("\n... (truncated)\n");
+  }
+  md += lit("## Current event snapshot (EID %1)\n\n```text\n%2\n```\n\n")
+            .arg(m_Ctx.CurEvent())
+            .arg(snap);
+
+  QVector<ThumbData> thumbs = grabThumbImages();
+  if(!thumbs.isEmpty())
+  {
+    QFileInfo fi(path);
+    const QString imgDirName = fi.completeBaseName() + lit("_files");
+    QDir(fi.dir()).mkpath(imgDirName);
+    md += lit("## Texture thumbnails\n\n");
+    for(const ThumbData &t : thumbs)
+    {
+      const QString fname = QStringLiteral("%1/%2.png").arg(imgDirName).arg(t.label);
+      QFile f(fi.dir().filePath(fname));
+      if(f.open(QIODevice::WriteOnly))
+      {
+        f.write(t.png);
+        f.close();
+        md += lit("![%1](%2)\n").arg(t.label).arg(fname);
+      }
+    }
+    md += lit("\n");
+  }
+
+  QString conclusion = lastAssistantMessage();
+  if(!conclusion.isEmpty())
+    md += lit("## Latest AI analysis conclusion\n\n%1\n").arg(conclusion);
+
+  QFile out(path);
+  if(out.open(QIODevice::WriteOnly | QIODevice::Text))
+  {
+    out.write(md.toUtf8());
+    out.close();
+    unsetCursor();
+    QMessageBox::information(this, tr("Pipeline Agent"),
+                             tr("Report exported to:\n%1").arg(path));
+  }
+  else
+  {
+    unsetCursor();
+    QMessageBox::warning(this, tr("Pipeline Agent"), tr("Could not write %1").arg(path));
+  }
 }

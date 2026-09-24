@@ -122,6 +122,16 @@
         </property>
        </widget>
       </item>
+      <item row="7" column="0" colspan="2">
+       <widget class="QCheckBox" name="includeThumbsCheck">
+        <property name="text">
+         <string>Attach texture thumbnails (current render targets + depth) so the model can see (uses replay thread)</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -293,6 +303,16 @@
          <widget class="QPushButton" name="refreshButton">
           <property name="text">
            <string>Refresh</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="exportReportButton">
+          <property name="text">
+           <string>Export report</string>
+          </property>
+          <property name="toolTip">
+           <string>Export a markdown analysis report of this capture (with texture images)</string>
           </property>
          </widget>
         </item>

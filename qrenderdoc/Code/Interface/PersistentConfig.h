@@ -848,6 +848,9 @@ DECLARE_REFLECTION_STRUCT(BugReport);
   CONFIG_SETTING_VAL(public, bool, bool, AgentAssistant_IncludeShaderDisassembly, true)            \
                                                                                                    \
   DOCUMENT("");                                                                                    \
+  CONFIG_SETTING_VAL(public, bool, bool, AgentAssistant_IncludeTextureThumbs, true)                \
+                                                                                                   \
+  DOCUMENT("");                                                                                    \
   CONFIG_SETTING(private, QVariantList, rdcarray<RemoteHost>, RemoteHostList)                      \
                                                                                                    \
   DOCUMENT("");                                                                                    \

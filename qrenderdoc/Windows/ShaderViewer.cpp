@@ -36,6 +36,7 @@
 #include <QSet>
 #include <QShortcut>
 #include <QToolTip>
+#include <QToolButton>
 #include "Code/Resources.h"
 #include "Code/ScintillaSyntax.h"
 #include "Widgets/Extended/RDLabel.h"
@@ -288,6 +289,22 @@ ShaderViewer::ShaderViewer(ICaptureContext &ctx, QWidget *parent)
     toolbarlayout->addWidget(new QLabel(tr("Disassembly type:"), m_DisassemblyToolbar));
     toolbarlayout->addWidget(m_DisassemblyType);
     toolbarlayout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+
+    QToolButton *agentButton = new QToolButton(m_DisassemblyToolbar);
+    agentButton->setText(tr("Send to Agent"));
+    agentButton->setToolTip(
+        tr("Send this disassembly to the Pipeline Agent panel for AI analysis"));
+    toolbarlayout->addWidget(agentButton);
+    QObject::connect(agentButton, &QToolButton::clicked, [this]() {
+      const QString text =
+          QString::fromUtf8(m_DisassemblyView->getText(m_DisassemblyView->textLength() + 1));
+      if(text.trimmed().isEmpty())
+        return;
+      IAgentAssistant *agent = m_Ctx.GetAgentAssistant();
+      if(agent)
+        agent->AnalyzeShaderText(lit("Shader disassembly"),
+                                 rdcstr(text.toUtf8().constData()));
+    });
 
     QVBoxLayout *framelayout = new QVBoxLayout(m_DisassemblyFrame);
     framelayout->setSpacing(0);

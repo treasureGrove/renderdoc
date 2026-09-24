@@ -1654,6 +1654,14 @@ QWidget.
 )");
   virtual QWidget *Widget() = 0;
 
+  DOCUMENT(R"(Hands a block of text (typically shader disassembly or decompiled HLSL) to the
+agent panel for AI analysis, opening the panel and pre-filling the request.
+
+:param shaderTitle: A short human-readable label for the text's origin.
+:param shaderText: The text to analyse.
+)");
+  virtual void AnalyzeShaderText(const rdcstr &shaderTitle, const rdcstr &shaderText) { }
+
 protected:
   IAgentAssistant() = default;
   ~IAgentAssistant() = default;

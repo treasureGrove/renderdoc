@@ -11,6 +11,9 @@
 - 在 **Tools → Pipeline Agent**（或主工具区对应页签）中打开面板。
 - 选择 **Provider**（如 OpenAI、Anthropic、Gemini、Azure、OpenAI 兼容 URL、OpenRouter、智谱 GLM、GitHub Models、DeepSeek、阿里云百炼 Qwen、月之暗面 Kimi、百度千帆 ERNIE、火山引擎豆包 Doubao 等），填写 **API Token**；**Model** 请从下拉项中选择各平台当前可用模型。
 - 可选勾选 **Include shader disassembly**，在上下文中附带当前绑定阶段的反汇编（会走回放线程，可能略慢）。
+- 可选勾选 **Attach texture thumbnails**（默认开启），把当前事件的渲染目标与深度缓冲截图（最长边 512，PNG）以**多模态图片**发给模型，OpenAI / Anthropic / Gemini 三协议均支持，让模型"看见"画面再分析。
+- **Shader Viewer → Disassembly** 工具栏的 **Send to Agent** 按钮：一键把当前反汇编（含你通过 Shader Processing Tool 反编译出的 HLSL）送进 Pipeline Agent 提问。
+- **Export report** 按钮：一键导出 Markdown 拆解报告（事件树、逐 pass 快照、当前事件管线状态、渲染目标/深度截图、最近的 AI 结论），适合产出 graphics-study 风格的渲染分析文章。
 - 在底部输入框用自然语言提问（例如：梳理本帧渲染管线、某 Pass 在做什么）。面板通过**原生 function calling** 向模型暴露 `list_events` / `scan_pass` / `fetch_eid` 三个工具，模型按需调用，本地自动取数并以结构化 tool result 多轮回填（对话上下文在工具循环内完整保留）。对不支持 tools 的 Provider/模型会自动降级为 **`[FETCH_EID nnnn]`** / **`[SCAN_PASS nnnn]`** / **`[LIST_EVENTS]`** 文本协议。相邻几轮问答（仅问题与结论，不含大快照）会作为轻量历史带上，支持追问。
 - 对话区支持滚动历史；回复里的 **`EID xxxx`** 可点击跳转到对应事件。
 - **Send** 发送，**Stop** 中断长请求或多轮工具循环；**Ctrl+F** 在聊天中搜索；界面会显示 **Token 用量** 与当前**状态**（避免长时间无反馈）。
