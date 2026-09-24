@@ -25,6 +25,8 @@
 #pragma once
 
 #include <QFrame>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QList>
 #include <QPair>
 #include <QPixmap>
@@ -99,6 +101,14 @@ private:
   };
   QList<ChatMessage> m_chatHistory;
 
+  // Protocol-neutral conversation for the in-flight question, stored in OpenAI message shape
+  // (role/content, assistant tool_calls, tool results). Serialised per-provider on dispatch.
+  QJsonArray m_apiMessages;
+  // Compact cross-question memory: past (user question, assistant answer) pairs, no snapshots.
+  QJsonArray m_apiHistory;
+  // Set when a provider rejects the `tools` parameter; falls back to the bracket protocol.
+  bool m_nativeToolsDisabled = false;
+
   int m_toolUseRound = 0;
   static const int kMaxToolUseRounds = 15;
   QString m_lastUserQuestion;
@@ -125,7 +135,9 @@ private:
   uint32_t parseScanPass(const QString &text);
   void sendFollowUpWithData(uint32_t eid);
   void sendFollowUpWithScan(uint32_t markerEID);
-  void sendLLMRequestRaw(const QString &userBody);
+  void dispatchLLMRequest();
+  QString executeAgentTool(const QString &name, const QJsonObject &args);
+  void appendTurnToHistory(const QString &question, const QString &answer);
   void setStatusText(const QString &text);
   void parseTokenUsage(const QJsonObject &root);
   void updateTokenLabel();

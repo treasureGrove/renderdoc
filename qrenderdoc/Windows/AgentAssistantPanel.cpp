@@ -1299,27 +1299,32 @@ static QString systemPrompt()
       "the numeric event ID). These become clickable links so the user can navigate directly "
       "to that event in the Event Browser.\n\n"
       "=== AVAILABLE TOOLS ===\n"
-      "You have three tools. Write the command on its own line. The system executes it automatically "
-      "and sends the result back. You may chain up to 5 tool calls per conversation turn.\n\n"
-      "1) [LIST_EVENTS]  -- Returns the full frame event tree (all markers, draw calls, dispatches, "
+      "You have three tools to pull more capture data on demand: list_events, scan_pass and "
+      "fetch_eid. This session exposes them through the API's native function-calling interface; "
+      "invoke them as real tool calls whenever possible. If native tool calling is unavailable "
+      "for this provider, write the equivalent bracket command on its own line instead -- "
+      "[LIST_EVENTS], [SCAN_PASS nnnn] or [FETCH_EID nnnn] -- and the system executes it and "
+      "returns the result automatically.\n\n"
+      "1) list_events  -- Returns the full frame event tree (all markers, draw calls, dispatches, "
       "clears, copies, presents) in a hierarchical text format. Use this FIRST when the user asks "
       "to reverse-engineer or summarize the entire rendering pipeline. The tree shows marker names, "
       "EIDs, action types, draw parameters, and render target IDs.\n\n"
-      "2) [SCAN_PASS nnnn]  -- Scans a marker/pass at the given EID. Collects all leaf draw/dispatch/"
-      "clear/copy events under that marker, samples up to 8 of them, and returns a condensed pipeline "
-      "snapshot for each sampled event. Use this to understand what a render pass does (its shaders, "
-      "render targets, blend state, etc.) without fetching every single draw.\n\n"
-      "3) [FETCH_EID nnnn]  -- Fetches the full pipeline snapshot for a single event. Use this when "
+      "2) scan_pass(marker_eid)  -- Scans a marker/pass at the given EID. Collects all leaf draw/"
+      "dispatch/clear/copy events under that marker, samples up to 8 of them, and returns a "
+      "condensed pipeline snapshot for each sampled event. Use this to understand what a render "
+      "pass does (its shaders, render targets, blend state, etc.) without fetching every single "
+      "draw.\n\n"
+      "3) fetch_eid(eid)  -- Fetches the full pipeline snapshot for a single event. Use this when "
       "you need detailed state for one specific draw call (vertex/index buffers, full descriptor "
       "tables, shader disassembly if enabled, etc.).\n\n"
       "=== REVERSE-ENGINEERING THE RENDERING PIPELINE ===\n"
       "When the user asks you to reverse-engineer or analyze the full rendering pipeline, follow "
       "this workflow:\n"
-      "  Step 1: Call [LIST_EVENTS] to get the full frame event tree.\n"
+      "  Step 1: Call list_events to get the full frame event tree.\n"
       "  Step 2: Identify the top-level render passes from the marker hierarchy.\n"
-      "  Step 3: Call [SCAN_PASS nnnn] on each major pass to sample its draws and understand "
+      "  Step 3: Call scan_pass on each major pass to sample its draws and understand "
       "what each pass renders (GBuffer, shadows, lighting, post-processing, UI, etc.).\n"
-      "  Step 4: If needed, call [FETCH_EID nnnn] on specific draws for deeper detail.\n"
+      "  Step 4: If needed, call fetch_eid on specific draws for deeper detail.\n"
       "  Step 5: Synthesize everything into a clear, ordered pipeline summary:\n"
       "    - What each pass does (purpose, render targets, shaders)\n"
       "    - The rendering order (what happens first, second, etc.)\n"
@@ -1329,21 +1334,324 @@ static QString systemPrompt()
       "the passes automatically and provide a complete pipeline breakdown.\n");
 }
 
-static QByteArray makeOpenAIChatPayload(const QString &model, const QString &userBody)
+// ===== native function-calling (tools) support ===============================
+//
+// m_apiMessages holds the conversation in OpenAI message shape (system/user/assistant
+// messages, assistant "tool_calls" arrays, "tool" result messages). Each provider
+// payload builder serialises that canonical form into its own protocol.
+
+struct AgentToolSpec
+{
+  const char *name;
+  const char *desc;
+};
+
+static const AgentToolSpec kAgentTools[] = {
+    {"list_events",
+     "Return the full frame event tree: all markers, draw calls, dispatches, clears, copies and "
+     "presents with their EIDs, in hierarchical text form. Use FIRST when summarizing or "
+     "reverse-engineering the whole rendering pipeline."},
+    {"scan_pass",
+     "Scan a marker/pass at the given EID: collects all leaf draw/dispatch/clear/copy events under "
+     "that marker, samples up to 8 of them and returns a condensed pipeline snapshot for each. Use "
+     "to understand what a render pass does without fetching every draw."},
+    {"fetch_eid",
+     "Fetch the full pipeline snapshot for a single event EID: bound buffers, descriptors, shader "
+     "disassembly (if enabled), render targets and state. Use for deep detail on one specific "
+     "draw."},
+};
+
+static QJsonObject toolParameterSchema(const QString &name)
+{
+  QJsonObject schema;
+  schema[lit("type")] = lit("object");
+  QJsonObject props;
+  QJsonArray required;
+  if(name == lit("scan_pass"))
+  {
+    QJsonObject p;
+    p[lit("type")] = lit("integer");
+    p[lit("description")] = lit("EID of the marker/pass to scan");
+    props[lit("marker_eid")] = p;
+    required.append(lit("marker_eid"));
+  }
+  else if(name == lit("fetch_eid"))
+  {
+    QJsonObject p;
+    p[lit("type")] = lit("integer");
+    p[lit("description")] = lit("EID of the draw/dispatch to fetch");
+    props[lit("eid")] = p;
+    required.append(lit("eid"));
+  }
+  schema[lit("properties")] = props;
+  schema[lit("required")] = required;
+  return schema;
+}
+
+static QJsonArray openAIToolsJson()
+{
+  QJsonArray tools;
+  for(const AgentToolSpec &t : kAgentTools)
+  {
+    QJsonObject fn;
+    fn[lit("name")] = QString::fromUtf8(t.name);
+    fn[lit("description")] = QString::fromUtf8(t.desc);
+    fn[lit("parameters")] = toolParameterSchema(QString::fromUtf8(t.name));
+    QJsonObject o;
+    o[lit("type")] = lit("function");
+    o[lit("function")] = fn;
+    tools.append(o);
+  }
+  return tools;
+}
+
+static QJsonArray anthropicToolsJson()
+{
+  QJsonArray tools;
+  for(const AgentToolSpec &t : kAgentTools)
+  {
+    QJsonObject o;
+    o[lit("name")] = QString::fromUtf8(t.name);
+    o[lit("description")] = QString::fromUtf8(t.desc);
+    o[lit("input_schema")] = toolParameterSchema(QString::fromUtf8(t.name));
+    tools.append(o);
+  }
+  return tools;
+}
+
+static QJsonArray geminiFunctionDeclarations()
+{
+  QJsonArray decls;
+  for(const AgentToolSpec &t : kAgentTools)
+  {
+    QJsonObject o;
+    o[lit("name")] = QString::fromUtf8(t.name);
+    o[lit("description")] = QString::fromUtf8(t.desc);
+    o[lit("parameters")] = toolParameterSchema(QString::fromUtf8(t.name));
+    decls.append(o);
+  }
+  return decls;
+}
+
+static QJsonObject toolArgsFromString(const QString &json)
+{
+  QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
+  return doc.isObject() ? doc.object() : QJsonObject();
+}
+
+static QJsonArray openAIMessagesJson(const QJsonArray &msgs)
+{
+  QJsonArray out;
+  for(const QJsonValue &v : msgs)
+  {
+    QJsonObject m = v.toObject();
+    QJsonObject c;
+    c[lit("role")] = m[lit("role")];
+    if(m.contains(lit("content")))
+      c[lit("content")] = m[lit("content")];
+    if(m.contains(lit("tool_call_id")))
+      c[lit("tool_call_id")] = m[lit("tool_call_id")];
+    if(m.contains(lit("tool_calls")))
+    {
+      QJsonArray calls;
+      for(const QJsonValue &tv : m[lit("tool_calls")].toArray())
+      {
+        QJsonObject tc = tv.toObject();
+        QJsonObject fn;
+        fn[lit("name")] = tc[lit("function")].toObject()[lit("name")];
+        fn[lit("arguments")] = tc[lit("function")].toObject()[lit("arguments")];
+        QJsonObject o;
+        o[lit("id")] = tc[lit("id")];
+        o[lit("type")] = lit("function");
+        o[lit("function")] = fn;
+        calls.append(o);
+      }
+      c[lit("tool_calls")] = calls;
+    }
+    out.append(c);
+  }
+  return out;
+}
+
+static QJsonArray anthropicMessagesFromCanonical(const QJsonArray &msgs)
+{
+  QJsonArray out;
+  QJsonArray pendingToolResults;
+  auto flushToolResults = [&out, &pendingToolResults]() {
+    if(pendingToolResults.isEmpty())
+      return;
+    QJsonArray blocks;
+    for(const QJsonValue &v : pendingToolResults)
+    {
+      QJsonObject t = v.toObject();
+      QJsonObject b;
+      b[lit("type")] = lit("tool_result");
+      b[lit("tool_use_id")] = t[lit("tool_call_id")];
+      b[lit("content")] = t[lit("content")];
+      blocks.append(b);
+    }
+    QJsonObject u;
+    u[lit("role")] = lit("user");
+    u[lit("content")] = blocks;
+    out.append(u);
+    pendingToolResults = QJsonArray();
+  };
+
+  for(const QJsonValue &v : msgs)
+  {
+    QJsonObject m = v.toObject();
+    QString role = m[lit("role")].toString();
+    if(role == lit("system"))
+      continue;
+    if(role == lit("tool"))
+    {
+      pendingToolResults.append(m);
+      continue;
+    }
+    flushToolResults();
+    if(role == lit("assistant"))
+    {
+      QJsonArray blocks;
+      QString txt = m[lit("content")].toString();
+      if(!txt.isEmpty())
+      {
+        QJsonObject b;
+        b[lit("type")] = lit("text");
+        b[lit("text")] = txt;
+        blocks.append(b);
+      }
+      for(const QJsonValue &tv : m[lit("tool_calls")].toArray())
+      {
+        QJsonObject tc = tv.toObject();
+        QJsonObject fn = tc[lit("function")].toObject();
+        QJsonObject b;
+        b[lit("type")] = lit("tool_use");
+        b[lit("id")] = tc[lit("id")];
+        b[lit("name")] = fn[lit("name")];
+        b[lit("input")] = toolArgsFromString(fn[lit("arguments")].toString());
+        blocks.append(b);
+      }
+      if(blocks.isEmpty())
+        continue;
+      QJsonObject am;
+      am[lit("role")] = lit("assistant");
+      am[lit("content")] = blocks;
+      out.append(am);
+      continue;
+    }
+    out.append(m);
+  }
+  flushToolResults();
+  return out;
+}
+
+static QJsonArray geminiContentsFromCanonical(const QJsonArray &msgs)
+{
+  QJsonArray out;
+  for(const QJsonValue &v : msgs)
+  {
+    QJsonObject m = v.toObject();
+    QString role = m[lit("role")].toString();
+    if(role == lit("system"))
+      continue;
+    QJsonObject turn;
+    turn[lit("role")] =
+        (role == lit("assistant")) ? QJsonValue(lit("model")) : QJsonValue(lit("user"));
+    QJsonArray parts;
+    QString txt = m[lit("content")].toString();
+    if(!txt.isEmpty())
+    {
+      QJsonObject tp;
+      tp[lit("text")] = txt;
+      parts.append(tp);
+    }
+    if(role == lit("assistant"))
+    {
+      for(const QJsonValue &tv : m[lit("tool_calls")].toArray())
+      {
+        QJsonObject tc = tv.toObject();
+        QJsonObject fn = tc[lit("function")].toObject();
+        QJsonObject fc;
+        fc[lit("name")] = fn[lit("name")];
+        fc[lit("args")] = toolArgsFromString(fn[lit("arguments")].toString());
+        QJsonObject fp;
+        fp[lit("functionCall")] = fc;
+        parts.append(fp);
+      }
+    }
+    if(role == lit("tool"))
+    {
+      QJsonObject fr;
+      fr[lit("name")] = m[lit("rd_name")].toString();
+      QJsonObject resp;
+      resp[lit("result")] = m[lit("content")].toString();
+      fr[lit("response")] = resp;
+      QJsonObject fp;
+      fp[lit("functionResponse")] = fr;
+      parts.append(fp);
+    }
+    if(parts.isEmpty())
+      continue;
+    turn[lit("parts")] = parts;
+    out.append(turn);
+  }
+  return out;
+}
+
+static QByteArray makeOpenAIChatPayload(const QString &model, const QJsonArray &msgs,
+                                        bool withTools)
 {
   QJsonObject root;
   root[lit("model")] = model;
-  QJsonArray msgs;
-  QJsonObject s;
-  s[lit("role")] = lit("system");
-  s[lit("content")] = systemPrompt();
-  msgs.append(s);
-  QJsonObject u;
-  u[lit("role")] = lit("user");
-  u[lit("content")] = userBody;
-  msgs.append(u);
-  root[lit("messages")] = msgs;
+  root[lit("messages")] = openAIMessagesJson(msgs);
+  if(withTools)
+    root[lit("tools")] = openAIToolsJson();
   return QJsonDocument(root).toJson(QJsonDocument::Compact);
+}
+
+static QByteArray makeAnthropicPayload(const QString &model, const QJsonArray &msgs, bool withTools)
+{
+  QJsonObject root;
+  root[lit("model")] = model;
+  root[lit("max_tokens")] = 8192;
+  root[lit("system")] = systemPrompt();
+  root[lit("messages")] = anthropicMessagesFromCanonical(msgs);
+  if(withTools)
+    root[lit("tools")] = anthropicToolsJson();
+  return QJsonDocument(root).toJson(QJsonDocument::Compact);
+}
+
+static QByteArray makeGeminiPayload(const QJsonArray &msgs, bool withTools)
+{
+  QJsonObject root;
+  QJsonObject sit;
+  sit[lit("text")] = systemPrompt();
+  QJsonArray siParts;
+  siParts.append(sit);
+  QJsonObject si;
+  si[lit("parts")] = siParts;
+  root[lit("systemInstruction")] = si;
+  root[lit("contents")] = geminiContentsFromCanonical(msgs);
+  if(withTools)
+  {
+    QJsonObject td;
+    td[lit("functionDeclarations")] = geminiFunctionDeclarations();
+    QJsonArray tools;
+    tools.append(td);
+    root[lit("tools")] = tools;
+  }
+  return QJsonDocument(root).toJson(QJsonDocument::Compact);
+}
+
+static QString truncateToolBody(QString body)
+{
+  const int kMaxToolBody = 450000;
+  if(body.size() > kMaxToolBody)
+  {
+    body.truncate(kMaxToolBody);
+    body += lit("\n\n[Truncated for API limits.]\n");
+  }
+  return body;
 }
 
 static QString openAIMessageContentToString(const QJsonValue &contentVal, QString &err)
@@ -1370,72 +1678,125 @@ static QString openAIMessageContentToString(const QJsonValue &contentVal, QStrin
   return QString();
 }
 
-static QString extractOpenAIStyleText(const QJsonObject &root, QString &err)
+// Normalised provider response: visible text plus any native tool calls.
+struct AgentLLMResult
 {
-  err.clear();
+  QString text;
+  QString err;
+  QJsonArray toolCalls;    // entries: {"id":string, "name":string, "args":object}
+  bool hasToolCalls() const { return !toolCalls.isEmpty(); }
+};
+
+static AgentLLMResult parseOpenAIResponse(const QJsonObject &root)
+{
+  AgentLLMResult r;
   if(root.contains(lit("error")))
   {
     QJsonObject e = root[lit("error")].toObject();
-    err = e[lit("message")].toString();
-    if(err.isEmpty())
-      err = lit("Unknown API error");
-    return QString();
+    r.err = e[lit("message")].toString();
+    if(r.err.isEmpty())
+      r.err = lit("Unknown API error");
+    return r;
   }
   QJsonArray choices = root[lit("choices")].toArray();
   if(choices.isEmpty())
   {
-    err = lit("Empty choices in response");
-    return QString();
+    r.err = lit("Empty choices in response");
+    return r;
   }
-  QJsonObject c0 = choices[0].toObject();
-  QJsonObject msg = c0[lit("message")].toObject();
-  return openAIMessageContentToString(msg[lit("content")], err);
+  QJsonObject msg = choices[0].toObject()[lit("message")].toObject();
+  QString contentErr;
+  r.text = openAIMessageContentToString(msg[lit("content")], contentErr);
+  for(const QJsonValue &v : msg[lit("tool_calls")].toArray())
+  {
+    QJsonObject tc = v.toObject();
+    QJsonObject fn = tc[lit("function")].toObject();
+    QJsonObject norm;
+    norm[lit("id")] = tc[lit("id")].toString();
+    norm[lit("name")] = fn[lit("name")].toString();
+    norm[lit("args")] = toolArgsFromString(fn[lit("arguments")].toString());
+    r.toolCalls.append(norm);
+  }
+  return r;
 }
 
-static QString extractAnthropicText(const QJsonObject &root, QString &err)
+static AgentLLMResult parseAnthropicResponse(const QJsonObject &root)
 {
+  AgentLLMResult r;
   if(root.contains(lit("error")))
   {
     QJsonObject e = root[lit("error")].toObject();
-    err = e[lit("message")].toString();
-    if(err.isEmpty())
-      err = lit("Anthropic API error");
-    return QString();
+    r.err = e[lit("message")].toString();
+    if(r.err.isEmpty())
+      r.err = lit("Anthropic API error");
+    return r;
   }
-  QJsonArray content = root[lit("content")].toArray();
-  for(const QJsonValue &v : content)
+  QStringList texts;
+  for(const QJsonValue &v : root[lit("content")].toArray())
   {
     QJsonObject blk = v.toObject();
-    if(blk[lit("type")].toString() == lit("text"))
-      return blk[lit("text")].toString();
+    QString type = blk[lit("type")].toString();
+    if(type == lit("text"))
+    {
+      texts << blk[lit("text")].toString();
+    }
+    else if(type == lit("tool_use"))
+    {
+      QJsonObject norm;
+      norm[lit("id")] = blk[lit("id")].toString();
+      norm[lit("name")] = blk[lit("name")].toString();
+      norm[lit("args")] = blk[lit("input")].toObject();
+      r.toolCalls.append(norm);
+    }
   }
-  err = lit("No text block in Anthropic response");
-  return QString();
+  r.text = texts.join(lit("\n"));
+  if(r.text.isEmpty() && !r.hasToolCalls())
+    r.err = lit("No text block in Anthropic response");
+  return r;
 }
 
-static QString extractGeminiText(const QJsonObject &root, QString &err)
+static AgentLLMResult parseGeminiResponse(const QJsonObject &root)
 {
+  AgentLLMResult r;
   if(root.contains(lit("error")))
   {
     QJsonObject e = root[lit("error")].toObject();
-    err = e[lit("message")].toString();
-    return QString();
+    r.err = e[lit("message")].toString();
+    return r;
   }
   QJsonArray cands = root[lit("candidates")].toArray();
   if(cands.isEmpty())
   {
-    err = lit("No candidates in Gemini response");
-    return QString();
+    r.err = lit("No candidates in Gemini response");
+    return r;
   }
-  QJsonObject c0 = cands[0].toObject();
-  QJsonObject cont = c0[lit("content")].toObject();
-  QJsonArray parts = cont[lit("parts")].toArray();
+  QJsonArray parts = cands[0].toObject()[lit("content")].toObject()[lit("parts")].toArray();
   if(parts.isEmpty())
   {
-    err = lit("No parts in Gemini response");
-    return QString();
+    r.err = lit("No parts in Gemini response");
+    return r;
   }
-  return parts[0].toObject()[lit("text")].toString();
+  QStringList texts;
+  int callIdx = 0;
+  for(const QJsonValue &v : parts)
+  {
+    QJsonObject part = v.toObject();
+    if(part.contains(lit("text")))
+    {
+      texts << part[lit("text")].toString();
+    }
+    else if(part.contains(lit("functionCall")))
+    {
+      QJsonObject fc = part[lit("functionCall")].toObject();
+      QJsonObject norm;
+      norm[lit("id")] = QStringLiteral("gcall_%1").arg(callIdx++);
+      norm[lit("name")] = fc[lit("name")].toString();
+      norm[lit("args")] = fc[lit("args")].toObject();
+      r.toolCalls.append(norm);
+    }
+  }
+  r.text = texts.join(lit("\n"));
+  return r;
 }
 
 AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
@@ -2629,6 +2990,7 @@ void AgentAssistantPanel::repopulateModelCombo()
 
 void AgentAssistantPanel::onProviderChanged(int idx)
 {
+  m_nativeToolsDisabled = false;
   PersistentConfig &cfg = m_Ctx.Config();
   if(m_activeLLMProvider >= 0 && m_activeLLMProvider != idx)
   {
@@ -2866,7 +3228,6 @@ void AgentAssistantPanel::sendToLLM()
     return;
   }
 
-  PersistentConfig &cfg = m_Ctx.Config();
   const int p = ui->providerCombo->currentIndex();
   QString apiKey = ui->apiTokenEdit->text().trimmed();
   if(apiKey.isEmpty() && p != (int)AgentLLMBackend::OpenAICompatible)
@@ -2906,177 +3267,17 @@ void AgentAssistantPanel::sendToLLM()
     userBody += lit("\n\n[Total message truncated for API/request size limits.]\n");
   }
 
-  QUrl url;
-  QByteArray payload;
-  QNetworkRequest req;
-
-  auto setJsonContent = [&req]() {
-    req.setHeader(QNetworkRequest::ContentTypeHeader, lit("application/json"));
-  };
-
-  switch((AgentLLMBackend)p)
-  {
-    case AgentLLMBackend::OpenAI:
-    {
-      url = QUrl(lit("https://api.openai.com/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::Anthropic:
-    {
-      url = QUrl(lit("https://api.anthropic.com/v1/messages"));
-      QJsonObject root;
-      root[lit("model")] = rdcToQString(cfg.AgentAssistant_AnthropicModel);
-      root[lit("max_tokens")] = 8192;
-      root[lit("system")] = systemPrompt();
-      QJsonArray msgs;
-      QJsonObject u;
-      u[lit("role")] = lit("user");
-      u[lit("content")] = userBody;
-      msgs.append(u);
-      root[lit("messages")] = msgs;
-      payload = QJsonDocument(root).toJson(QJsonDocument::Compact);
-      setJsonContent();
-      req.setRawHeader("x-api-key", apiKey.toUtf8());
-      req.setRawHeader("anthropic-version", "2023-06-01");
-      break;
-    }
-    case AgentLLMBackend::GoogleGemini:
-    {
-      QString mid = rdcToQString(cfg.AgentAssistant_GoogleModel).trimmed();
-      if(mid.isEmpty())
-        mid = lit("gemini-1.5-flash");
-      url.setUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/%1:generateContent")
-                     .arg(mid));
-      QUrlQuery q;
-      q.addQueryItem(lit("key"), apiKey);
-      url.setQuery(q);
-
-      QJsonObject root;
-      QJsonArray contents;
-      QJsonObject turn;
-      turn[lit("role")] = lit("user");
-      QJsonArray parts;
-      QJsonObject ptxt;
-      ptxt[lit("text")] = systemPrompt() + QStringLiteral("\n\n") + userBody;
-      parts.append(ptxt);
-      turn[lit("parts")] = parts;
-      contents.append(turn);
-      root[lit("contents")] = contents;
-      payload = QJsonDocument(root).toJson(QJsonDocument::Compact);
-      setJsonContent();
-      break;
-    }
-    case AgentLLMBackend::AzureOpenAI:
-    {
-      QString ep = rdcToQString(cfg.AgentAssistant_AzureEndpoint).trimmed();
-      QString dep = rdcToQString(cfg.AgentAssistant_AzureDeployment).trimmed();
-      while(ep.endsWith(QLatin1Char('/')))
-        ep.chop(1);
-      if(ep.isEmpty() || dep.isEmpty())
-      {
-        QMessageBox::warning(this, tr("Pipeline Agent"),
-                             tr("Azure OpenAI requires endpoint and deployment name."));
-        return;
-      }
-      url = QUrl(ep + lit("/openai/deployments/") + dep +
-                 lit("/chat/completions?api-version=2024-02-15-preview"));
-      payload = makeOpenAIChatPayload(dep, userBody);
-      setJsonContent();
-      req.setRawHeader("api-key", apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::OpenAICompatible:
-    {
-      QString base = rdcToQString(cfg.AgentAssistant_CompatibleBaseUrl).trimmed();
-      while(base.endsWith(QLatin1Char('/')))
-        base.chop(1);
-      if(base.isEmpty())
-        base = lit("https://api.openai.com");
-      url = QUrl(base + lit("/v1/chat/completions"));
-      payload =
-          makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel).trimmed(), userBody);
-      setJsonContent();
-      if(!apiKey.isEmpty())
-        req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::OpenRouter:
-    {
-      url = QUrl(lit("https://openrouter.ai/api/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenRouterModel).trimmed(),
-                                      userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      req.setRawHeader("HTTP-Referer", "https://renderdoc.org");
-      req.setRawHeader("X-Title", "RenderDoc Pipeline Agent");
-      break;
-    }
-    case AgentLLMBackend::GLM_Zhipu:
-    {
-      url = QUrl(lit("https://open.bigmodel.cn/api/paas/v4/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GLMModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::GitHubModels:
-    {
-      url = QUrl(lit("https://models.github.ai/inference/chat/completions"));
-      payload =
-          makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GitHubModelsModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      req.setRawHeader("Accept", "application/vnd.github+json");
-      req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
-      break;
-    }
-    case AgentLLMBackend::DeepSeek:
-    {
-      url = QUrl(lit("https://api.deepseek.com/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DeepSeekModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::DashScope:
-    {
-      url = QUrl(lit("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DashScopeModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::Moonshot:
-    {
-      url = QUrl(lit("https://api.moonshot.cn/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_MoonshotModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::Qianfan:
-    {
-      url = QUrl(lit("https://qianfan.baidubce.com/v2/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_QianfanModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-    case AgentLLMBackend::Volcano:
-    {
-      url = QUrl(lit("https://ark.cn-beijing.volces.com/api/v3/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_VolcanoModel).trimmed(), userBody);
-      setJsonContent();
-      req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
-      break;
-    }
-  }
-
-  req.setUrl(url);
-  req.setRawHeader("User-Agent", "RenderDoc-PipelineAgent/1.0");
+  m_apiMessages = QJsonArray();
+  QJsonObject sys;
+  sys[lit("role")] = lit("system");
+  sys[lit("content")] = systemPrompt();
+  m_apiMessages.append(sys);
+  for(const QJsonValue &v : m_apiHistory)
+    m_apiMessages.append(v);
+  QJsonObject u;
+  u[lit("role")] = lit("user");
+  u[lit("content")] = userBody;
+  m_apiMessages.append(u);
 
   m_toolUseRound = 0;
   m_lastUserQuestion = question;
@@ -3088,8 +3289,7 @@ void AgentAssistantPanel::sendToLLM()
   setLLMUiBusy(true);
   setStatusText(tr("Sending request to LLM..."));
 
-  m_activeReply = m_net->post(req, payload);
-  QObject::connect(m_activeReply, &QNetworkReply::finished, this, &AgentAssistantPanel::onLLMFinished);
+  dispatchLLMRequest();
 }
 
 void AgentAssistantPanel::onLLMFinished()
@@ -3105,7 +3305,6 @@ void AgentAssistantPanel::onLLMFinished()
 
   int p = ui->providerCombo->currentIndex();
   QString err;
-  QString text;
 
   if(!m_chatHistory.isEmpty() && !m_chatHistory.last().isUser &&
      m_chatHistory.last().text == tr("Waiting for response..."))
@@ -3145,6 +3344,8 @@ void AgentAssistantPanel::onLLMFinished()
   QJsonObject root = doc.object();
   parseTokenUsage(root);
 
+  AgentLLMResult resp;
+  bool openaiFamily = true;
   switch((AgentLLMBackend)p)
   {
     case AgentLLMBackend::OpenAI:
@@ -3158,27 +3359,99 @@ void AgentAssistantPanel::onLLMFinished()
     case AgentLLMBackend::Moonshot:
     case AgentLLMBackend::Qianfan:
     case AgentLLMBackend::Volcano:
-      text = extractOpenAIStyleText(root, err);
+      resp = parseOpenAIResponse(root);
       break;
-    case AgentLLMBackend::Anthropic: text = extractAnthropicText(root, err); break;
-    case AgentLLMBackend::GoogleGemini: text = extractGeminiText(root, err); break;
+    case AgentLLMBackend::Anthropic:
+      openaiFamily = false;
+      resp = parseAnthropicResponse(root);
+      break;
+    case AgentLLMBackend::GoogleGemini:
+      openaiFamily = false;
+      resp = parseGeminiResponse(root);
+      break;
   }
 
-  if(!err.isEmpty() && text.isEmpty())
+  if(!resp.err.isEmpty() && resp.text.isEmpty() && !resp.hasToolCalls())
   {
-    appendChatMessage(false, tr("API error:\n") + err + lit("\n\nRaw:\n") + QString::fromUtf8(body));
+    // graceful degradation: some endpoints/models reject the `tools` parameter outright
+    if(openaiFamily && !m_nativeToolsDisabled &&
+       (resp.err.contains(lit("tool"), Qt::CaseInsensitive) ||
+        resp.err.contains(lit("function"), Qt::CaseInsensitive)))
+    {
+      m_nativeToolsDisabled = true;
+      setStatusText(tr("Provider rejected native tools; retrying with bracket protocol..."));
+      dispatchLLMRequest();
+      return;
+    }
+    appendChatMessage(false, tr("API error:\\n") + resp.err + lit("\\n\\nRaw:\\n") +
+                                 QString::fromUtf8(body));
     setStatusText(tr("Error"));
     return;
   }
-  if(text.isEmpty())
+
+  // native function-calling round
+  if(resp.hasToolCalls() && m_toolUseRound < kMaxToolUseRounds && m_Ctx.IsCaptureLoaded())
   {
-    appendChatMessage(false, tr("Empty reply:\n") + QString::fromUtf8(body));
-    setStatusText(tr("Error"));
+    if(!resp.text.trimmed().isEmpty())
+      appendChatMessage(false, resp.text.trimmed());
+
+    QJsonArray callsCanonical;
+    for(const QJsonValue &v : resp.toolCalls)
+    {
+      QJsonObject tc = v.toObject();
+      QJsonObject fn;
+      fn[lit("name")] = tc[lit("name")];
+      fn[lit("arguments")] =
+          QString::fromUtf8(QJsonDocument(tc[lit("args")].toObject()).toJson(QJsonDocument::Compact));
+      QJsonObject c;
+      c[lit("id")] = tc[lit("id")];
+      c[lit("type")] = lit("function");
+      c[lit("function")] = fn;
+      callsCanonical.append(c);
+    }
+
+    QJsonObject am;
+    am[lit("role")] = lit("assistant");
+    am[lit("content")] = resp.text;
+    am[lit("tool_calls")] = callsCanonical;
+    m_apiMessages.append(am);
+
+    for(const QJsonValue &v : callsCanonical)
+    {
+      QJsonObject c = v.toObject();
+      QString callId = c[lit("id")].toString();
+      QString name = c[lit("function")].toObject()[lit("name")].toString();
+      QJsonObject args =
+          toolArgsFromString(c[lit("function")].toObject()[lit("arguments")].toString());
+
+      m_toolUseRound++;
+      setStatusText(QStringLiteral("Tool: %1 (round %2/%3)")
+                        .arg(name)
+                        .arg(m_toolUseRound)
+                        .arg(kMaxToolUseRounds));
+      appendChatMessage(
+          false,
+          QStringLiteral("Tool call: %1(%2)")
+              .arg(name)
+              .arg(QString::fromUtf8(QJsonDocument(args).toJson(QJsonDocument::Compact))));
+
+      QJsonObject tr;
+      tr[lit("role")] = lit("tool");
+      tr[lit("tool_call_id")] = callId;
+      tr[lit("content")] = executeAgentTool(name, args);
+      tr[lit("rd_name")] = name;
+      m_apiMessages.append(tr);
+    }
+
+    setLLMUiBusy(true);
+    dispatchLLMRequest();
     return;
   }
 
+  // legacy bracket-protocol fallback (models/providers without native tool support)
   if(m_toolUseRound < kMaxToolUseRounds && m_Ctx.IsCaptureLoaded())
   {
+    QString text = resp.text;
     bool listEvents = text.contains(lit("[LIST_EVENTS]"));
     uint32_t scanEID = parseScanPass(text);
     uint32_t fetchEID = parseFetchEID(text);
@@ -3186,12 +3459,18 @@ void AgentAssistantPanel::onLLMFinished()
     if(listEvents || scanEID > 0 || fetchEID > 0)
     {
       QString cleanText = text;
-      cleanText.replace(QRegExp(lit("\\[LIST_EVENTS\\]")), QString());
-      cleanText.replace(QRegExp(lit("\\[SCAN_PASS\\s+\\d+\\]")), QString());
-      cleanText.replace(QRegExp(lit("\\[FETCH_EID\\s+\\d+\\]")), QString());
+      cleanText.replace(QRegExp(lit("\\\\[LIST_EVENTS\\\\]")), QString());
+      cleanText.replace(QRegExp(lit("\\\\[SCAN_PASS\\\\s+\\\\d+\\\\]")), QString());
+      cleanText.replace(QRegExp(lit("\\\\[FETCH_EID\\\\s+\\\\d+\\\\]")), QString());
       cleanText = cleanText.trimmed();
       if(!cleanText.isEmpty())
+      {
         appendChatMessage(false, cleanText);
+        QJsonObject am;
+        am[lit("role")] = lit("assistant");
+        am[lit("content")] = cleanText;
+        m_apiMessages.append(am);
+      }
 
       m_toolUseRound++;
       setLLMUiBusy(true);
@@ -3204,14 +3483,18 @@ void AgentAssistantPanel::onLLMFinished()
         appendChatMessage(false, tr("Building event tree..."));
         QString tree = formatEventTree();
         QString followUp = QStringLiteral(
-            "[Tool result: event tree]\n%1\n"
-            "[End tool result]\n\n"
+            "[Tool result: event tree]\\n%1\\n"
+            "[End tool result]\\n\\n"
             "Use this event tree to understand the full rendering pipeline. "
-            "Use [SCAN_PASS nnnn] on marker EIDs to sample draws in a pass, "
-            "or [FETCH_EID nnnn] for a single event's full pipeline state. "
+            "Use scan_pass on marker EIDs to sample draws in a pass, "
+            "or fetch_eid for a single event's full pipeline state. "
             "Analyze the rendering order and provide a complete pipeline breakdown.")
                              .arg(tree);
-        sendLLMRequestRaw(followUp);
+        QJsonObject um;
+        um[lit("role")] = lit("user");
+        um[lit("content")] = truncateToolBody(followUp);
+        m_apiMessages.append(um);
+        dispatchLLMRequest();
       }
       else if(scanEID > 0)
       {
@@ -3233,7 +3516,12 @@ void AgentAssistantPanel::onLLMFinished()
     }
   }
 
-  appendChatMessage(false, text);
+  QJsonObject finalMsg;
+  finalMsg[lit("role")] = lit("assistant");
+  finalMsg[lit("content")] = resp.text;
+  m_apiMessages.append(finalMsg);
+  appendTurnToHistory(m_lastUserQuestion, resp.text);
+  appendChatMessage(false, resp.text);
   setStatusText(tr("Ready"));
 }
 
@@ -3479,16 +3767,20 @@ void AgentAssistantPanel::sendFollowUpWithScan(uint32_t markerEID)
   }
 
   QString followUp = QStringLiteral(
-      "[Tool result: pass scan for EID %1]\n%2\n"
-      "[End tool result]\n\n"
+      "[Tool result: pass scan for EID %1]\\n%2\\n"
+      "[End tool result]\\n\\n"
       "Continue your analysis using this pass scan data. "
-      "You may use [FETCH_EID nnnn] to get more detail on specific draws, "
-      "[SCAN_PASS nnnn] on sub-passes, or [LIST_EVENTS] for the full tree. "
-      "When ready, provide your complete pipeline analysis to the user.")
+      "You may call fetch_eid for more detail on specific draws, scan_pass on sub-passes, or "
+      "list_events for the full tree. When ready, provide your complete pipeline analysis to the "
+      "user.")
                        .arg(markerEID)
                        .arg(scan);
 
-  sendLLMRequestRaw(followUp);
+  QJsonObject um;
+  um[lit("role")] = lit("user");
+  um[lit("content")] = truncateToolBody(followUp);
+  m_apiMessages.append(um);
+  dispatchLLMRequest();
 }
 
 void AgentAssistantPanel::sendFollowUpWithData(uint32_t eid)
@@ -3506,86 +3798,59 @@ void AgentAssistantPanel::sendFollowUpWithData(uint32_t eid)
   }
 
   QString followUp = QStringLiteral(
-      "[Tool result: pipeline snapshot for EID %1]\n%2\n"
-      "[End tool result]\n\n"
-      "Continue your analysis. Available tools: [LIST_EVENTS], [SCAN_PASS nnnn], [FETCH_EID nnnn]. "
+      "[Tool result: pipeline snapshot for EID %1]\\n%2\\n"
+      "[End tool result]\\n\\n"
+      "Continue your analysis. Available tools: list_events, scan_pass, fetch_eid. "
       "When ready, provide your complete answer to the user.")
                          .arg(eid)
                          .arg(snap);
 
-  sendLLMRequestRaw(followUp);
+  QJsonObject um;
+  um[lit("role")] = lit("user");
+  um[lit("content")] = truncateToolBody(followUp);
+  m_apiMessages.append(um);
+  dispatchLLMRequest();
 }
 
-void AgentAssistantPanel::sendLLMRequestRaw(const QString &userBody)
+void AgentAssistantPanel::dispatchLLMRequest()
 {
   PersistentConfig &cfg = m_Ctx.Config();
   const int p = ui->providerCombo->currentIndex();
   QString apiKey = ui->apiTokenEdit->text().trimmed();
 
-  const int kMaxBody = 450000;
-  QString body = userBody;
-  if(body.size() > kMaxBody)
-  {
-    body.truncate(kMaxBody);
-    body += lit("\n\n[Truncated for API limits.]\n");
-  }
-
   QUrl url;
   QByteArray payload;
   QNetworkRequest req;
-  auto setJson = [&req]() {
-    req.setHeader(QNetworkRequest::ContentTypeHeader, lit("application/json"));
-  };
+  req.setHeader(QNetworkRequest::ContentTypeHeader, lit("application/json"));
+  const bool withTools = !m_nativeToolsDisabled;
 
   switch((AgentLLMBackend)p)
   {
     case AgentLLMBackend::OpenAI:
       url = QUrl(lit("https://api.openai.com/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel), m_apiMessages,
+                                      withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     case AgentLLMBackend::Anthropic:
-    {
       url = QUrl(lit("https://api.anthropic.com/v1/messages"));
-      QJsonObject root;
-      root[lit("model")] = rdcToQString(cfg.AgentAssistant_AnthropicModel);
-      root[lit("max_tokens")] = 8192;
-      root[lit("system")] = systemPrompt();
-      QJsonArray msgs;
-      QJsonObject u;
-      u[lit("role")] = lit("user");
-      u[lit("content")] = body;
-      msgs.append(u);
-      root[lit("messages")] = msgs;
-      payload = QJsonDocument(root).toJson(QJsonDocument::Compact);
-      setJson();
+      payload = makeAnthropicPayload(rdcToQString(cfg.AgentAssistant_AnthropicModel), m_apiMessages,
+                                     withTools);
       req.setRawHeader("x-api-key", apiKey.toUtf8());
       req.setRawHeader("anthropic-version", "2023-06-01");
       break;
-    }
     case AgentLLMBackend::GoogleGemini:
     {
       QString mid = rdcToQString(cfg.AgentAssistant_GoogleModel).trimmed();
       if(mid.isEmpty())
         mid = lit("gemini-1.5-flash");
-      url.setUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/%1:generateContent").arg(mid));
+      url.setUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/%1"
+                                ":generateContent")
+                     .arg(mid));
       QUrlQuery q;
       q.addQueryItem(lit("key"), apiKey);
       url.setQuery(q);
-      QJsonObject root;
-      QJsonArray contents;
-      QJsonObject turn;
-      turn[lit("role")] = lit("user");
-      QJsonArray parts;
-      QJsonObject ptxt;
-      ptxt[lit("text")] = systemPrompt() + QStringLiteral("\n\n") + body;
-      parts.append(ptxt);
-      turn[lit("parts")] = parts;
-      contents.append(turn);
-      root[lit("contents")] = contents;
-      payload = QJsonDocument(root).toJson(QJsonDocument::Compact);
-      setJson();
+      payload = makeGeminiPayload(m_apiMessages, withTools);
       break;
     }
     case AgentLLMBackend::AzureOpenAI:
@@ -3596,8 +3861,7 @@ void AgentAssistantPanel::sendLLMRequestRaw(const QString &userBody)
         ep.chop(1);
       url = QUrl(ep + lit("/openai/deployments/") + dep +
                  lit("/chat/completions?api-version=2024-02-15-preview"));
-      payload = makeOpenAIChatPayload(dep, body);
-      setJson();
+      payload = makeOpenAIChatPayload(dep, m_apiMessages, withTools);
       req.setRawHeader("api-key", apiKey.toUtf8());
       break;
     }
@@ -3609,73 +3873,130 @@ void AgentAssistantPanel::sendLLMRequestRaw(const QString &userBody)
       if(base.isEmpty())
         base = lit("https://api.openai.com");
       url = QUrl(base + lit("/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenAIModel).trimmed(),
+                                      m_apiMessages, withTools);
       if(!apiKey.isEmpty())
         req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     }
     case AgentLLMBackend::OpenRouter:
       url = QUrl(lit("https://openrouter.ai/api/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenRouterModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_OpenRouterModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       req.setRawHeader("HTTP-Referer", "https://renderdoc.org");
       req.setRawHeader("X-Title", "RenderDoc Pipeline Agent");
       break;
     case AgentLLMBackend::GLM_Zhipu:
       url = QUrl(lit("https://open.bigmodel.cn/api/paas/v4/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GLMModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GLMModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     case AgentLLMBackend::GitHubModels:
       url = QUrl(lit("https://models.github.ai/inference/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GitHubModelsModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_GitHubModelsModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       req.setRawHeader("Accept", "application/vnd.github+json");
       req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
       break;
     case AgentLLMBackend::DeepSeek:
       url = QUrl(lit("https://api.deepseek.com/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DeepSeekModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DeepSeekModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     case AgentLLMBackend::DashScope:
       url = QUrl(lit("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DashScopeModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_DashScopeModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     case AgentLLMBackend::Moonshot:
       url = QUrl(lit("https://api.moonshot.cn/v1/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_MoonshotModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_MoonshotModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     case AgentLLMBackend::Qianfan:
       url = QUrl(lit("https://qianfan.baidubce.com/v2/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_QianfanModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_QianfanModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
     case AgentLLMBackend::Volcano:
       url = QUrl(lit("https://ark.cn-beijing.volces.com/api/v3/chat/completions"));
-      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_VolcanoModel).trimmed(), body);
-      setJson();
+      payload = makeOpenAIChatPayload(rdcToQString(cfg.AgentAssistant_VolcanoModel).trimmed(),
+                                      m_apiMessages, withTools);
       req.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
       break;
   }
 
   req.setUrl(url);
-  req.setRawHeader("User-Agent", "RenderDoc-PipelineAgent/1.0");
+  req.setRawHeader("User-Agent", "RenderDoc-PipelineAgent/1.1");
 
   setStatusText(QStringLiteral("Waiting for LLM response (round %1/%2)...")
                     .arg(m_toolUseRound + 1)
                     .arg(kMaxToolUseRounds));
 
   m_activeReply = m_net->post(req, payload);
-  QObject::connect(m_activeReply, &QNetworkReply::finished, this, &AgentAssistantPanel::onLLMFinished);
+  QObject::connect(m_activeReply, &QNetworkReply::finished, this,
+                   &AgentAssistantPanel::onLLMFinished);
+}
+
+QString AgentAssistantPanel::executeAgentTool(const QString &name, const QJsonObject &args)
+{
+  if(!m_Ctx.IsCaptureLoaded())
+    return lit("Error: no capture is loaded.");
+
+  if(name == lit("list_events") || name == lit("LIST_EVENTS"))
+    return formatEventTree();
+
+  static const char *eidKeys[] = {"marker_eid", "eid", "markerEID", "event_id", "eventid", "EID"};
+  uint32_t eid = 0;
+  for(const char *k : eidKeys)
+  {
+    if(args.contains(QString::fromUtf8(k)))
+    {
+      bool ok = false;
+      eid = args.value(QString::fromUtf8(k)).toVariant().toUInt(&ok);
+      if(ok && eid > 0)
+        break;
+      eid = 0;
+    }
+  }
+  if(eid == 0)
+    return lit("Error: missing or invalid integer argument (marker_eid for scan_pass, eid for "
+               "fetch_eid).");
+
+  if(name == lit("scan_pass") || name == lit("SCAN_PASS"))
+  {
+    QString scan = scanPassSummary(eid);
+    return scan.isEmpty() ? QStringLiteral("No data found under marker EID %1.").arg(eid) : scan;
+  }
+  if(name == lit("fetch_eid") || name == lit("FETCH_EID"))
+  {
+    QString snap = snapshotForEID(eid);
+    return snap.isEmpty() ? QStringLiteral("No pipeline snapshot available for EID %1.").arg(eid)
+                          : snap;
+  }
+  return lit("Error: unknown tool '") + name +
+         lit("'. Available tools: list_events, scan_pass, fetch_eid.");
+}
+
+void AgentAssistantPanel::appendTurnToHistory(const QString &question, const QString &answer)
+{
+  if(question.isEmpty() || answer.isEmpty())
+    return;
+  QJsonObject u;
+  u[lit("role")] = lit("user");
+  u[lit("content")] = question;
+  QJsonObject a;
+  a[lit("role")] = lit("assistant");
+  a[lit("content")] = answer;
+  m_apiHistory.append(u);
+  m_apiHistory.append(a);
+  while(m_apiHistory.size() > 8)
+    m_apiHistory.removeAt(0);
 }
