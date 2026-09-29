@@ -116,22 +116,22 @@ static QString agentPanelStylesheetAnime()
 }
 #AgentAssistantPanel QLabel {
   font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  color: #17242B;
+  color: #DCE7E2;
   background-color: transparent;
 }
 #AgentAssistantPanel #helpLabel {
   font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  color: #3F545C;
-  background-color: rgba(255, 255, 255, 140);
+  color: #C4D6CE;
+  background-color: rgba(10, 26, 21, 170);
+  border: 1px solid rgba(117, 210, 184, 40);
   padding: 8px 10px;
   border-radius: 8px;
 }
 #AgentAssistantPanel QGroupBox {
-  border: 1px solid rgba(255, 255, 255, 60);
-  border-top: 1px solid rgba(255, 255, 255, 90);
-  border-left: 1px solid rgba(255, 255, 255, 70);
+  border: 1px solid rgba(117, 210, 184, 55);
+  border-top: 1px solid rgba(117, 210, 184, 80);
   border-radius: 18px;
-  background-color: rgba(255, 255, 255, 78);
+  background-color: rgba(10, 28, 23, 155);
   margin-top: 16px;
   padding: 16px 12px 12px 12px;
 }
@@ -140,19 +140,19 @@ static QString agentPanelStylesheetAnime()
   left: 14px;
   padding: 0 8px;
   font: bold 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  color: #0F2438;
+  color: #6FE3BE;
 }
 #AgentAssistantPanel QLineEdit,
 #AgentAssistantPanel QComboBox {
-  background-color: rgba(255, 255, 255, 92);
-  border: 1px solid rgba(255, 255, 255, 60);
+  background-color: rgba(8, 22, 18, 185);
+  border: 1px solid rgba(117, 210, 184, 45);
   border-bottom: 1px solid rgba(117, 210, 184, 110);
   border-radius: 8px;
   font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 5px 10px;
-  color: #17242B;
+  color: #E8F1ED;
   min-height: 22px;
-  selection-background-color: rgba(38, 168, 132, 160);
+  selection-background-color: rgba(38, 168, 132, 200);
   selection-color: white;
 }
 #AgentAssistantPanel QComboBox::drop-down {
@@ -163,16 +163,16 @@ static QString agentPanelStylesheetAnime()
   image: none;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 5px solid #147A63;
+  border-top: 5px solid #6FE3BE;
   margin-right: 8px;
 }
 #AgentAssistantPanel QComboBox QAbstractItemView {
-  background-color: rgba(248, 250, 252, 245);
-  border: 1px solid rgba(100, 140, 180, 90);
+  background-color: rgba(12, 28, 23, 248);
+  border: 1px solid rgba(117, 210, 184, 90);
   border-radius: 6px;
-  color: #17242B;
-  selection-background-color: rgba(38, 168, 132, 140);
-  selection-color: #0F1A28;
+  color: #E8F1ED;
+  selection-background-color: rgba(38, 168, 132, 190);
+  selection-color: white;
   padding: 4px;
   outline: none;
 }
@@ -181,114 +181,112 @@ static QString agentPanelStylesheetAnime()
   min-height: 22px;
 }
 #AgentAssistantPanel QComboBox QAbstractItemView::item:hover {
-  background-color: rgba(38, 168, 132, 60);
+  background-color: rgba(38, 168, 132, 80);
 }
 #AgentAssistantPanel QLineEdit:hover,
 #AgentAssistantPanel QComboBox:hover {
-  background-color: rgba(255, 255, 255, 70);
-  border: 1px solid rgba(255, 255, 255, 90);
+  background-color: rgba(10, 26, 21, 210);
+  border: 1px solid rgba(117, 210, 184, 80);
 }
 #AgentAssistantPanel QLineEdit:focus {
-  border: 1px solid rgba(38, 168, 132, 160);
-  border-bottom: 1px solid rgba(20, 122, 99, 200);
+  border: 1px solid rgba(38, 168, 132, 190);
+  border-bottom: 1px solid rgba(55, 177, 140, 210);
 }
 #AgentAssistantPanel QLineEdit:disabled,
 #AgentAssistantPanel QComboBox:disabled {
-  color: #5F7078;
-  background-color: rgba(255, 255, 255, 45);
-  border: 1px solid rgba(255, 255, 255, 25);
+  color: #5F7A70;
+  background-color: rgba(8, 22, 18, 120);
+  border: 1px solid rgba(117, 210, 184, 25);
 }
 #AgentAssistantPanel QPlainTextEdit {
-  background-color: rgba(255, 255, 255, 88);
-  color: #17242B;
-  border: 1px solid rgba(255, 255, 255, 50);
-  border-top: 1px solid rgba(255, 255, 255, 70);
+  background-color: rgba(8, 22, 18, 180);
+  color: #D9E7E1;
+  border: 1px solid rgba(117, 210, 184, 45);
   border-radius: 12px;
   padding: 10px;
   font: 11pt Consolas, "Cascadia Mono", "Courier New", monospace;
-  selection-background-color: rgba(38, 168, 132, 160);
+  selection-background-color: rgba(38, 168, 132, 200);
   selection-color: white;
 }
 #AgentAssistantPanel #chatLog {
-  background-color: rgba(255, 255, 255, 82);
-  border: 1px solid rgba(255, 255, 255, 40);
-  border-top: 1px solid rgba(255, 255, 255, 65);
-  border-left: 1px solid rgba(255, 255, 255, 50);
+  background-color: rgba(9, 24, 20, 165);
+  border: 1px solid rgba(117, 210, 184, 45);
+  border-left: 1px solid rgba(117, 210, 184, 55);
   border-radius: 18px;
   padding: 8px;
   font: 13px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  color: #17242B;
+  color: #DCE7E2;
 }
 #AgentAssistantPanel #snapshotToggleBtn {
   background-color: transparent;
   border: none;
-  color: #147A63;
+  color: #6FE3BE;
   font: bold 13px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   text-align: left;
   padding: 2px 4px;
 }
 #AgentAssistantPanel #snapshotToggleBtn:hover {
-  color: #0E5C4B;
+  color: #8FF0CC;
   text-decoration: underline;
 }
 #AgentAssistantPanel QPushButton {
-  background-color: rgba(255, 255, 255, 72);
-  border: 1px solid rgba(255, 255, 255, 50);
-  border-top: 1px solid rgba(255, 255, 255, 75);
+  background-color: rgba(38, 168, 132, 32);
+  border: 1px solid rgba(117, 210, 184, 60);
+  border-top: 1px solid rgba(117, 210, 184, 85);
   border-radius: 8px;
-  color: #17242B;
+  color: #DCE7E2;
   font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 5px 12px 6px 12px;
   min-height: 24px;
 }
 #AgentAssistantPanel QPushButton:hover {
-  background-color: rgba(255, 255, 255, 88);
-  border: 1px solid rgba(255, 255, 255, 80);
-  border-top: 1px solid rgba(255, 255, 255, 110);
-  color: #11221E;
+  background-color: rgba(38, 168, 132, 60);
+  border: 1px solid rgba(117, 210, 184, 95);
+  border-top: 1px solid rgba(117, 210, 184, 120);
+  color: #FFFFFF;
 }
 #AgentAssistantPanel QPushButton:pressed {
-  color: #3F545C;
-  background-color: rgba(255, 255, 255, 30);
+  color: #FFFFFF;
+  background-color: rgba(38, 168, 132, 85);
 }
 #AgentAssistantPanel QPushButton:disabled {
-  color: rgba(180, 200, 220, 80);
-  background-color: rgba(255, 255, 255, 15);
-  border: 1px solid rgba(255, 255, 255, 20);
+  color: rgba(150, 180, 170, 70);
+  background-color: rgba(20, 40, 34, 60);
+  border: 1px solid rgba(117, 210, 184, 20);
 }
 #AgentAssistantPanel #sendLLMButton {
   color: white;
-  background-color: rgba(38, 168, 132, 185);
-  border: 1px solid rgba(38, 168, 132, 140);
-  border-top: 1px solid rgba(55, 200, 160, 190);
+  background-color: rgba(38, 168, 132, 235);
+  border: 1px solid rgba(55, 177, 140, 200);
+  border-top: 1px solid rgba(90, 215, 175, 225);
   font-weight: bold;
 }
 #AgentAssistantPanel #sendLLMButton:hover {
-  background-color: rgba(38, 168, 132, 220);
-  border-top: 1px solid rgba(90, 215, 175, 210);
+  background-color: rgba(55, 195, 150, 245);
+  border-top: 1px solid rgba(120, 230, 190, 235);
 }
 #AgentAssistantPanel #sendLLMButton:pressed {
-  background-color: rgba(20, 122, 99, 210);
-  border: 1px solid rgba(20, 122, 99, 190);
+  background-color: rgba(20, 122, 99, 240);
+  border: 1px solid rgba(20, 122, 99, 220);
 }
 #AgentAssistantPanel #sendLLMButton:disabled {
-  color: rgba(180, 200, 220, 100);
-  background-color: rgba(38, 168, 132, 40);
-  border: 1px solid rgba(38, 168, 132, 30);
+  color: rgba(220, 240, 232, 90);
+  background-color: rgba(38, 168, 132, 70);
+  border: 1px solid rgba(38, 168, 132, 50);
 }
 #AgentAssistantPanel #continueToChatButton {
   color: white;
-  background-color: rgba(38, 168, 132, 185);
-  border: 1px solid rgba(38, 168, 132, 140);
-  border-top: 1px solid rgba(55, 200, 160, 190);
+  background-color: rgba(38, 168, 132, 235);
+  border: 1px solid rgba(55, 177, 140, 200);
+  border-top: 1px solid rgba(90, 215, 175, 225);
   font-weight: bold;
   min-height: 30px;
 }
 #AgentAssistantPanel #continueToChatButton:hover {
-  background-color: rgba(38, 168, 132, 220);
+  background-color: rgba(55, 195, 150, 245);
 }
 #AgentAssistantPanel QCheckBox {
-  color: #17242B;
+  color: #DCE7E2;
   font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   spacing: 8px;
   min-height: 22px;
@@ -297,87 +295,87 @@ static QString agentPanelStylesheetAnime()
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 60);
-  background-color: rgba(255, 255, 255, 35);
+  border: 1px solid rgba(117, 210, 184, 70);
+  background-color: rgba(8, 22, 18, 160);
 }
 #AgentAssistantPanel QCheckBox::indicator:hover {
-  background-color: rgba(255, 255, 255, 55);
-  border: 1px solid rgba(255, 255, 255, 80);
+  background-color: rgba(8, 22, 18, 200);
+  border: 1px solid rgba(117, 210, 184, 110);
 }
 #AgentAssistantPanel QCheckBox::indicator:checked {
-  background-color: rgba(38, 168, 132, 185);
-  border: 1px solid rgba(38, 168, 132, 150);
-}
-#AgentAssistantPanel QCheckBox::indicator:checked:hover {
-  background-color: rgba(38, 168, 132, 220);
+  background-color: rgba(38, 168, 132, 215);
   border: 1px solid rgba(38, 168, 132, 190);
 }
+#AgentAssistantPanel QCheckBox::indicator:checked:hover {
+  background-color: rgba(55, 195, 150, 235);
+  border: 1px solid rgba(55, 177, 140, 220);
+}
 #AgentAssistantPanel QCheckBox:disabled {
-  color: rgba(180, 200, 220, 80);
+  color: rgba(150, 180, 170, 70);
 }
 #AgentAssistantPanel QCheckBox::indicator:disabled {
-  border: 1px solid rgba(255, 255, 255, 20);
-  background-color: rgba(255, 255, 255, 12);
+  border: 1px solid rgba(117, 210, 184, 25);
+  background-color: rgba(8, 22, 18, 80);
 }
 #AgentAssistantPanel #statusLabel {
   font: bold 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  color: #0D2B24;
+  color: #6FE3BE;
   padding: 2px 4px;
-  background-color: rgba(255, 255, 255, 100);
+  background-color: rgba(8, 22, 18, 190);
+  border: 1px solid rgba(117, 210, 184, 40);
   border-radius: 6px;
 }
 #AgentAssistantPanel #tokenUsageLabel {
   font: 11px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  color: #5F7078;
+  color: #8FA8A0;
   padding: 0px 4px;
   background-color: transparent;
 }
 #AgentAssistantPanel #stopButton {
   color: white;
-  background-color: rgba(220, 70, 60, 175);
-  border: 1px solid rgba(220, 70, 60, 135);
-  border-top: 1px solid rgba(255, 130, 120, 150);
+  background-color: rgba(220, 60, 50, 205);
+  border: 1px solid rgba(220, 60, 50, 165);
+  border-top: 1px solid rgba(255, 120, 110, 185);
   font-weight: bold;
 }
 #AgentAssistantPanel #stopButton:hover {
-  background-color: rgba(220, 70, 60, 215);
-  border-top: 1px solid rgba(255, 140, 130, 180);
+  background-color: rgba(235, 80, 70, 230);
+  border-top: 1px solid rgba(255, 140, 130, 205);
 }
 #AgentAssistantPanel #stopButton:pressed {
-  background-color: rgba(180, 45, 40, 205);
+  background-color: rgba(170, 40, 35, 220);
 }
 #AgentAssistantPanel #stopButton:disabled {
-  color: rgba(180, 200, 220, 80);
-  background-color: rgba(180, 45, 40, 30);
-  border: 1px solid rgba(180, 45, 40, 20);
+  color: rgba(255, 200, 195, 80);
+  background-color: rgba(180, 45, 40, 45);
+  border: 1px solid rgba(180, 45, 40, 30);
 }
 #AgentAssistantPanel #searchEdit {
-  background-color: rgba(255, 255, 255, 90);
-  border: 1px solid rgba(255, 255, 255, 55);
+  background-color: rgba(8, 22, 18, 195);
+  border: 1px solid rgba(117, 210, 184, 50);
   border-radius: 8px;
   font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 3px 8px;
   min-height: 18px;
-  color: #17242B;
+  color: #E8F1ED;
 }
 #AgentAssistantPanel #searchNextBtn,
 #AgentAssistantPanel #searchCloseBtn {
   padding: 2px 8px;
   min-height: 18px;
   font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
-  background-color: rgba(255, 255, 255, 75);
-  border: 1px solid rgba(255, 255, 255, 45);
+  background-color: rgba(38, 168, 132, 38);
+  border: 1px solid rgba(117, 210, 184, 55);
   border-radius: 6px;
-  color: #17242B;
+  color: #DCE7E2;
 }
 #AgentAssistantPanel #searchNextBtn:hover,
 #AgentAssistantPanel #searchCloseBtn:hover {
-  background-color: rgba(255, 255, 255, 60);
+  background-color: rgba(38, 168, 132, 60);
 }
 )CSS");
 }
 
-// Dark panel for RDDark / Native-dark.
 static QString agentPanelStylesheetDark()
 {
   return QStringLiteral(R"CSS(
@@ -2024,14 +2022,14 @@ void AgentAssistantPanel::paintEvent(QPaintEvent *)
     int x = (width() - m_bgScaled.width()) / 2;
     int y = (height() - m_bgScaled.height()) / 2;
     p.drawPixmap(x, y, m_bgScaled);
-    p.fillRect(rect(), QColor(7, 20, 17, 45));
+    p.fillRect(rect(), QColor(7, 20, 17, 150));
   }
   else
   {
     QLinearGradient grad(0, 0, width(), height());
-    grad.setColorAt(0.0, QColor(0xEE, 0xF7, 0xF3));
-    grad.setColorAt(0.5, QColor(0xDF, 0xEF, 0xE8));
-    grad.setColorAt(1.0, QColor(0xD0, 0xE8, 0xDD));
+    grad.setColorAt(0.0, QColor(0x0A, 0x17, 0x13));
+    grad.setColorAt(0.5, QColor(0x0E, 0x24, 0x1D));
+    grad.setColorAt(1.0, QColor(0x12, 0x31, 0x27));
     p.fillRect(rect(), grad);
   }
 }
