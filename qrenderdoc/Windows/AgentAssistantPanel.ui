@@ -276,6 +276,16 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="analyzeFrameButton">
+          <property name="text">
+           <string>Analyze frame</string>
+          </property>
+          <property name="toolTip">
+           <string>One-click full frame analysis: gathers the event tree, every top-level pass, shaders and texture thumbnails, then asks the model for a complete pipeline breakdown</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="stopButton">
           <property name="text">
            <string>Stop</string>

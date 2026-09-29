@@ -80,6 +80,7 @@ private slots:
   void onSearchClose();
   void onSearchToggle();
   void exportReport();
+  void analyzeFullFrame();
 
 private:
   Ui::AgentAssistantPanel *ui;
@@ -111,6 +112,14 @@ private:
   QJsonArray m_apiHistory;
   // Set when a provider rejects the `tools` parameter; falls back to the bracket protocol.
   bool m_nativeToolsDisabled = false;
+
+  // snapshot rebuild cache: only rebuild the (possibly heavy) context dump when the
+  // question's skill routing or the current event actually changes
+  bool m_snapshotValid = false;
+  uint32_t m_snapshotSkills = 0xFFFFFFFFu;
+  uint32_t m_snapshotEID = 0xFFFFFFFFu;
+  // suppresses rebuilds while temporarily switching events to build tool-call snapshots
+  bool m_buildingToolSnapshot = false;
 
   int m_toolUseRound = 0;
   static const int kMaxToolUseRounds = 15;
@@ -152,6 +161,7 @@ private:
   void sendFollowUpWithData(uint32_t eid);
   void sendFollowUpWithScan(uint32_t markerEID);
   void dispatchLLMRequest();
+  void startLLMRequest(const QString &question, QString userBody, bool withThumbs);
   QString executeAgentTool(const QString &name, const QJsonObject &args);
   void appendTurnToHistory(const QString &question, const QString &answer);
   void setStatusText(const QString &text);

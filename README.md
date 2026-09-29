@@ -236,6 +236,26 @@ powershell -ExecutionPolicy Bypass -File util\mcp-server\install.ps1
 
 ---
 
+## Android（GLES / Vulkan）捕获
+
+Pipeline Agent 与 API 无关，**Android 设备抓的帧开箱即用**：上游 RenderDoc 自带 adb 连接
+Android 设备回放（Capture → Launch Application → Remote Android Device），抓到 GLES 或
+Vulkan 帧后，Pipeline Agent 的事件树 / pass 扫描 / 管线快照 / 纹理缩略图全部正常工作。
+
+Shader 还原路径按 API 自动区分：
+
+| 捕获 API | 反编译路径 |
+|----------|-----------|
+| Android Vulkan | 内置 **spirv-cross** 直接 SPIR-V → HLSL/GLSL（无需额外安装） |
+| D3D12 (DXIL) | `util\decompile-tools`（dxil-spirv → spirv-cross） |
+| D3D11 (DXBC) | `util\decompile-tools`（dxbc2dxil → dxil-spirv → spirv-cross，保真度略低） |
+
+**一键全帧解析**：Pipeline Agent 面板的 **Analyze frame** 按钮会把事件树、每个顶层 pass 的
+采样扫描、shader 反汇编和纹理缩略图一次性打包发给模型，产出整帧管线的完整拆解——对
+Android 游戏的卡通渲染/后处理链逆向尤其方便。
+
+---
+
 ## 构建与运行
 
 从源码编译方式与上游一致，请参阅 [`docs/CONTRIBUTING/Compiling.md`](docs/CONTRIBUTING/Compiling.md)。Windows 下通常使用 Visual Studio 打开生成目录中的解决方案并按说明配置 Qt 等依赖。

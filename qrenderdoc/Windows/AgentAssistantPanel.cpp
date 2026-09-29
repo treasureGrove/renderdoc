@@ -1936,6 +1936,8 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
                    &AgentAssistantPanel::copyContextOnly);
   QObject::connect(ui->refreshButton, &QPushButton::clicked, this, &AgentAssistantPanel::refreshSnapshot);
   QObject::connect(ui->sendLLMButton, &QPushButton::clicked, this, &AgentAssistantPanel::sendToLLM);
+  QObject::connect(ui->analyzeFrameButton, &QPushButton::clicked, this,
+                   &AgentAssistantPanel::analyzeFullFrame);
   QObject::connect(ui->continueToChatButton, &QPushButton::clicked, this,
                    &AgentAssistantPanel::onContinueToChat);
 
@@ -1961,6 +1963,8 @@ AgentAssistantPanel::AgentAssistantPanel(ICaptureContext &ctx, QWidget *parent)
   {
     QObject::connect(ui->questionEdit, &QLineEdit::textChanged, this,
                      &AgentAssistantPanel::rebuildSnapshot);
+    QObject::connect(ui->questionEdit, &QLineEdit::returnPressed, this,
+                     &AgentAssistantPanel::sendToLLM);
   }
 
   QObject::connect(ui->chatLog, &QTextBrowser::anchorClicked, this,
@@ -2043,11 +2047,13 @@ AgentAssistantPanel::~AgentAssistantPanel()
 
 void AgentAssistantPanel::OnCaptureLoaded()
 {
+  m_snapshotValid = false;
   rebuildSnapshot();
 }
 
 void AgentAssistantPanel::OnCaptureClosed()
 {
+  m_snapshotValid = false;
   rebuildSnapshot();
 }
 
@@ -2192,6 +2198,19 @@ QString AgentAssistantPanel::formatEventTree()
 
 void AgentAssistantPanel::rebuildSnapshot()
 {
+  // The heavy part is formatPipelineSnapshot(); what it renders depends only on the
+  // question's skill routing and the current event, so skip when neither changed
+  // (fires on every keystroke and on both event-change callbacks otherwise).
+  if(m_buildingToolSnapshot)
+    return;
+  const uint32_t skills =
+      selectAgentDataSkills(ui->questionEdit ? ui->questionEdit->text() : QString());
+  const uint32_t eid = m_Ctx.IsCaptureLoaded() ? m_Ctx.CurEvent() : 0;
+  if(m_snapshotValid && skills == m_snapshotSkills && eid == m_snapshotEID)
+    return;
+  m_snapshotValid = true;
+  m_snapshotSkills = skills;
+  m_snapshotEID = eid;
   ui->snapshotEdit->setPlainText(formatPipelineSnapshot());
 }
 
@@ -2199,6 +2218,9 @@ QString AgentAssistantPanel::snapshotForEID(uint32_t eid)
 {
   if(!m_Ctx.IsCaptureLoaded())
     return QString();
+
+  // temporarily switching events would otherwise trigger two full panel rebuilds
+  m_buildingToolSnapshot = true;
 
   uint32_t savedSel = m_Ctx.CurSelectedEvent();
   uint32_t savedCur = m_Ctx.CurEvent();
@@ -2220,6 +2242,8 @@ QString AgentAssistantPanel::snapshotForEID(uint32_t eid)
 
   m_Ctx.SetEventID({this}, savedSel, savedCur, true);
   m_Ctx.Replay().BlockInvoke([](IReplayController *) {});
+
+  m_buildingToolSnapshot = false;
 
   if(!shaderBlock.isEmpty())
     snap += lit("\n") + shaderBlock;
@@ -3254,6 +3278,8 @@ void AgentAssistantPanel::stopLLM()
 void AgentAssistantPanel::setLLMUiBusy(bool busy)
 {
   ui->sendLLMButton->setEnabled(!busy);
+  ui->analyzeFrameButton->setEnabled(!busy && m_Ctx.IsCaptureLoaded());
+  ui->exportReportButton->setEnabled(!busy && m_Ctx.IsCaptureLoaded());
   ui->stopButton->setEnabled(busy);
   ui->providerCombo->setEnabled(!busy);
   ui->apiTokenEdit->setEnabled(!busy);
@@ -3348,6 +3374,78 @@ void AgentAssistantPanel::sendToLLM()
     m_pendingAnalyzeText.clear();
   }
   userBody += lit("\nUser question:\n") + question;
+
+  startLLMRequest(question, userBody, true);
+}
+
+void AgentAssistantPanel::analyzeFullFrame()
+{
+  if(!m_Ctx.IsCaptureLoaded())
+  {
+    QMessageBox::information(this, tr("Pipeline Agent"), tr("Load a capture first."));
+    return;
+  }
+
+  const int p = ui->providerCombo->currentIndex();
+  QString apiKey = ui->apiTokenEdit->text().trimmed();
+  if(apiKey.isEmpty() && p != (int)AgentLLMBackend::OpenAICompatible)
+  {
+    QMessageBox::warning(this, tr("Pipeline Agent"), tr("Please enter an API token."));
+    return;
+  }
+
+  saveSettingsToConfig();
+
+  // empty question routes ALL data skills into the snapshot
+  const QString savedQuestion = ui->questionEdit->text();
+  ui->questionEdit->clear();
+  QString body = formatPipelineSnapshot();
+  ui->questionEdit->setText(savedQuestion);
+
+  setCursor(Qt::WaitCursor);
+  setStatusText(tr("Collecting full frame data (event tree + per-pass scans + shaders)..."));
+
+  body += lit("\n\n") + formatEventTree();
+
+  body += lit("\n\n=== Per-pass summaries (sampled draws for each top-level pass) ===");
+  int passIdx = 0;
+  for(const ActionDescription &a : m_Ctx.CurRootActions())
+  {
+    if(a.children.empty())
+      continue;
+    if(++passIdx > 8)
+    {
+      body += lit("\n(further top-level passes omitted; use the scan_pass tool for them)");
+      break;
+    }
+    QString name = QString::fromUtf8(a.customName.c_str());
+    if(name.isEmpty())
+      name = QStringLiteral("pass");
+    body += QStringLiteral("\n\n--- Pass: %1 (EID %2) ---\n").arg(name).arg(a.eventId);
+    body += scanPassSummary(a.eventId);
+  }
+
+  if(ui->includeDisasmCheck->isChecked())
+  {
+    rdcstr disasm;
+    m_Ctx.Replay().BlockInvoke([&](IReplayController *r) { disasm = collectShaderDisassembly(m_Ctx, r); });
+    QString shaderBlock = rdcToQString(disasm);
+    if(!shaderBlock.isEmpty())
+      body += lit("\n\n") + shaderBlock;
+  }
+  unsetCursor();
+
+  const QString question =
+      tr("Analyse this entire frame end-to-end: identify every render pass, what each pass "
+         "renders, which shaders and resources are involved, how the passes connect (which "
+         "pass's output feeds which), and produce a complete ordered pipeline breakdown with "
+         "EID references. Use the tools to drill into anything the summaries leave unclear.");
+
+  startLLMRequest(question, body, true);
+}
+
+void AgentAssistantPanel::startLLMRequest(const QString &question, QString userBody, bool withThumbs)
+{
   const int kMaxUserBodyChars = 450000;
   if(userBody.size() > kMaxUserBodyChars)
   {
@@ -3356,7 +3454,7 @@ void AgentAssistantPanel::sendToLLM()
   }
 
   QVector<ThumbData> thumbs;
-  if(ui->includeThumbsCheck->isChecked() && m_Ctx.IsCaptureLoaded())
+  if(withThumbs && ui->includeThumbsCheck->isChecked() && m_Ctx.IsCaptureLoaded())
   {
     setStatusText(tr("Grabbing texture thumbnails..."));
     thumbs = grabThumbImages();
