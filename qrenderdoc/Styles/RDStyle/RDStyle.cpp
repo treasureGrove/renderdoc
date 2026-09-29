@@ -193,11 +193,11 @@ void RDStyle::polishPalette(QPalette &pal) const
   else if(m_Scheme == AnimeGlass)
   {
     // ACG frosted-glass LIGHT: bright pastel blue-white + sky-blue accent.
-    window = QColor(0x0A, 0x17, 0x13);        // deep green-black canvas
-    windowText = QColor(0xE2, 0xE8, 0xF0);   // light slate text
+    window = QColor(0xF2, 0xF9, 0xF6);        // bright airy canvas
+    windowText = QColor(0x17, 0x24, 0x2B);   // dark ink text
     base = QColor(0xF6, 0xFB, 0xF8);         // near-white card
     highlight = QColor(0x26, 0xA8, 0x84);   // emerald accent
-    tooltip = QColor(0x0F, 0x22, 0x1C);      // dark popup
+    tooltip = QColor(0xFF, 0xFF, 0xFF);      // white popup
   }
   else
   {
@@ -221,7 +221,7 @@ void RDStyle::polishPalette(QPalette &pal) const
   if(m_Scheme == Light)
     pal.setColor(QPalette::AlternateBase, base.darker(110));
   else if(m_Scheme == AnimeGlass)
-    pal.setColor(QPalette::AlternateBase, QColor(0xEC, 0xF5, 0xF0));
+    pal.setColor(QPalette::AlternateBase, QColor(0xEA, 0xF5, 0xF0));
   else
     pal.setColor(QPalette::AlternateBase, base.lighter(110));
 
@@ -235,8 +235,8 @@ void RDStyle::polishPalette(QPalette &pal) const
 
   if(m_Scheme == AnimeGlass)
   {
-    pal.setColor(QPalette::Button, QColor(0x14, 0x2C, 0x25));
-    pal.setColor(QPalette::ButtonText, QColor(0xE2, 0xE8, 0xF0));
+    pal.setColor(QPalette::Button, QColor(0xF6, 0xFB, 0xF9));
+    pal.setColor(QPalette::ButtonText, QColor(0x17, 0x24, 0x2B));
   }
 
   pal.setColor(QPalette::Highlight, highlight);
@@ -249,7 +249,7 @@ void RDStyle::polishPalette(QPalette &pal) const
 
   // links are based on the highlight colour
   QColor link = m_Scheme == Light ? highlight.darker(125)
-                                  : (m_Scheme == AnimeGlass ? QColor(0x37, 0xB1, 0x8C) : highlight.lighter(105));
+                                  : (m_Scheme == AnimeGlass ? QColor(0x14, 0x7A, 0x63) : highlight.lighter(105));
   pal.setColor(QPalette::Link, link);
 
   // visited links are desaturated
@@ -317,46 +317,46 @@ void RDStyle::polish(QApplication *app)
     app->setStyleSheet(lit(
         "QMainWindow::separator { background: rgba(117,210,184,60); width: 3px; height: 3px; }"
 
-        "QToolBar { background: rgba(15, 34, 28,200); border: 1px solid rgba(117,210,184,50);"
+        "QToolBar { background: rgba(240, 248, 244,200); border: 1px solid rgba(117,210,184,50);"
         " border-radius: 6px; margin: 2px; spacing: 5px; }"
 
-        "QMenuBar { background: rgba(12, 27, 22,220); color: #DCE7E2;"
+        "QMenuBar { background: rgba(248, 252, 251,220); color: #17242B;"
         " border-bottom: 1px solid rgba(117,210,184,60); padding: 2px; }"
         "QMenuBar::item { padding: 4px 10px; border-radius: 4px; }"
         "QMenuBar::item:selected { background: rgba(38,168,132,50); }"
-        "QMenu { background: rgba(12, 28, 23,235); border: 1px solid rgba(117,210,184,80);"
+        "QMenu { background: rgba(252, 254, 253,235); border: 1px solid rgba(117,210,184,80);"
         " border-radius: 8px; padding: 4px; }"
-        "QMenu::item { padding: 5px 28px 5px 20px; border-radius: 4px; color: #DCE7E2; }"
+        "QMenu::item { padding: 5px 28px 5px 20px; border-radius: 4px; color: #17242B; }"
         "QMenu::item:selected { background: rgba(38,168,132,55); }"
         "QMenu::separator { height: 1px; background: rgba(117,210,184,50); margin: 4px 12px; }"
 
-        "QStatusBar { background: rgba(12, 27, 22,200); color: #93ACA4; }"
+        "QStatusBar { background: rgba(248, 252, 251,200); color: #5F7078; }"
 
         "QTabWidget::pane { border: 1px solid rgba(117,210,184,60);"
-        " background: rgba(12, 28, 23,180); border-radius: 4px; }"
-        "QTabBar::tab { background: rgba(15, 34, 28,160); border: 1px solid rgba(117,210,184,50);"
+        " background: rgba(252, 254, 253,180); border-radius: 4px; }"
+        "QTabBar::tab { background: rgba(240, 248, 244,160); border: 1px solid rgba(117,210,184,50);"
         " border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px;"
-        " padding: 4px 12px; margin-right: 2px; color: #A9C0B8; }"
+        " padding: 4px 12px; margin-right: 2px; color: #3F545C; }"
         "QTabBar::tab:selected { background: rgba(255,255,255,200);"
-        " border-bottom: 2px solid #26A884; color: #DCE7E2; }"
-        "QTabBar::tab:hover:!selected { background: rgba(38,168,132,70); }"
+        " border-bottom: 2px solid #26A884; color: #17242B; }"
+        "QTabBar::tab:hover:!selected { background: rgba(55,177,140,35); }"
 
         "QDockWidget { titlebar-close-icon: none; titlebar-normal-icon: none; }"
-        "QDockWidget::title { background: rgba(15, 34, 28,180);"
+        "QDockWidget::title { background: rgba(240, 248, 244,180);"
         " border: 1px solid rgba(117,210,184,40); border-radius: 4px;"
-        " padding: 4px 8px; color: #A9C0B8; }"
+        " padding: 4px 8px; color: #3F545C; }"
 
-        "QToolTip { background: rgba(12, 28, 23,230); border: 1px solid rgba(117,210,184,100);"
-        " border-radius: 6px; color: #DCE7E2; padding: 5px 8px; }"
+        "QToolTip { background: rgba(252, 254, 253,230); border: 1px solid rgba(117,210,184,100);"
+        " border-radius: 6px; color: #17242B; padding: 5px 8px; }"
 
-        "QScrollBar:vertical { background: rgba(12, 27, 22,80); width: 10px;"
+        "QScrollBar:vertical { background: rgba(248, 252, 251,80); width: 10px;"
         " border-radius: 5px; margin: 0; }"
         "QScrollBar::handle:vertical { background: rgba(117,210,184,100);"
         " border-radius: 4px; min-height: 30px; margin: 1px; }"
         "QScrollBar::handle:vertical:hover { background: rgba(38,168,132,150); }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
-        "QScrollBar:horizontal { background: rgba(12, 27, 22,80); height: 10px;"
+        "QScrollBar:horizontal { background: rgba(248, 252, 251,80); height: 10px;"
         " border-radius: 5px; margin: 0; }"
         "QScrollBar::handle:horizontal { background: rgba(117,210,184,100);"
         " border-radius: 4px; min-width: 30px; margin: 1px; }"
@@ -364,8 +364,8 @@ void RDStyle::polish(QApplication *app)
         "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
         "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
 
-        "QHeaderView::section { background: rgba(15, 34, 28,180);"
-        " border: 1px solid rgba(117,210,184,40); padding: 4px 8px; color: #A9C0B8; }"
+        "QHeaderView::section { background: rgba(240, 248, 244,180);"
+        " border: 1px solid rgba(117,210,184,40); padding: 4px 8px; color: #3F545C; }"
 
         "QTreeView, QListView, QTableView { background: rgba(250,253,251,225);"
         " alternate-background-color: rgba(236,245,240,160);"
