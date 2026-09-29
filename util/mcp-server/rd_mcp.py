@@ -100,6 +100,47 @@ TOOLS = [
         },
     },
     {
+        "name": "read_texture_b64",
+        "description": (
+            "Save the given colour output (or depth buffer) of an event as PNG and return it "
+            "base64-encoded, downscaled so the longest edge is <= max_size (default 512). Use "
+            "when you need the image content itself rather than a file path."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "eid": {"type": "integer", "description": "Event ID (default: current event)."},
+                "output_index": {
+                    "type": "integer",
+                    "description": "Colour output index (default 0). Ignored when depth=true.",
+                },
+                "depth": {"type": "boolean", "description": "Grab depth buffer instead."},
+                "max_size": {
+                    "type": "integer",
+                    "description": "Longest edge cap in pixels (default 512).",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "pixel_history",
+        "description": (
+            "Query the pixel history of one pixel on the event's first colour output: every "
+            "modification across the frame with pre/post values and rejection flags (discard, "
+            "depth/stencil fail, culled). Best way to explain why a pixel looks the way it does."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "eid": {"type": "integer", "description": "Event ID (default: current event)."},
+                "x": {"type": "integer", "description": "Pixel X coordinate."},
+                "y": {"type": "integer", "description": "Pixel Y coordinate."},
+            },
+            "required": ["x", "y"],
+        },
+    },
+    {
         "name": "run_python",
         "description": (
             "Execute arbitrary python code inside the RenderDoc GUI (UI thread) and return "

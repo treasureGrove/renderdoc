@@ -228,11 +228,132 @@ def tool_run_python(args):
         return {"output": buf.getvalue(), "error": "%s: %s" % (type(e).__name__, e)}
 
 
+def tool_read_texture_b64(args):
+    if not rd.IsCaptureLoaded():
+        return {"error": "no capture loaded"}
+    eid = int(args.get("eid", 0)) or rd.CurEvent()
+    a = rd.GetAction(eid)
+    if a is None:
+        return {"error": "EID %d not found" % eid}
+    want_depth = bool(args.get("depth", False))
+    idx = int(args.get("output_index", 0))
+    rid = _null()
+    if want_depth:
+        rid = a.depthOut
+    elif idx < len(a.outputs):
+        rid = a.outputs[idx]
+    if rid == _null():
+        return {"error": "EID %d has no such output" % eid}
+
+    rd.SetEventID(None, eid, eid, False)
+    path = os.path.join(tempfile.gettempdir(), "rd_mcp_b64.png")
+
+    def grab(controller):
+        save = renderdoc.TextureSave()
+        save.resourceId = rid
+        save.destType = renderdoc.FileType.PNG
+        save.mip = 0
+        controller.SaveTexture(save, path)
+
+    rd.Replay().BlockInvoke(grab)
+
+    import base64
+    from PySide2.QtCore import QBuffer, QIODevice, Qt
+    from PySide2.QtGui import QImage
+
+    img = QImage(path)
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    if img.isNull():
+        return {"error": "SaveTexture produced no readable image"}
+
+    maxsize = max(32, int(args.get("max_size", 512)))
+    if img.width() > maxsize or img.height() > maxsize:
+        img = img.scaled(maxsize, maxsize, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+    buf = QBuffer()
+    buf.open(QIODevice.WriteOnly)
+    img.save(buf, "PNG")
+    data = bytes(buf.data())
+    if data.count() > 4 * 1024 * 1024:
+        return {"error": "image too large to return (%d bytes)" % data.count()}
+    return {
+        "eid": eid,
+        "width": img.width(),
+        "height": img.height(),
+        "format": "png_base64",
+        "data": base64.b64encode(data).decode("ascii"),
+    }
+
+
+def _pv_str(pv):
+    try:
+        f = pv.floatValue
+        return "(%.4f, %.4f, %.4f, %.4f)" % (f[0], f[1], f[2], f[3])
+    except Exception:
+        return str(pv)
+
+
+def tool_pixel_history(args):
+    if not rd.IsCaptureLoaded():
+        return {"error": "no capture loaded"}
+    eid = int(args.get("eid", 0)) or rd.CurEvent()
+    a = rd.GetAction(eid)
+    if a is None:
+        return {"error": "EID %d not found" % eid}
+    try:
+        x = int(args["x"])
+        y = int(args["y"])
+    except Exception:
+        return {"error": "integer x and y are required"}
+    rid = _null()
+    for i in range(len(a.outputs)):
+        if a.outputs[i] != _null():
+            rid = a.outputs[i]
+            break
+    if rid == _null():
+        rid = a.depthOut
+    if rid == _null():
+        return {"error": "EID %d has no outputs to inspect" % eid}
+
+    rd.SetEventID(None, eid, eid, False)
+    box = {}
+
+    def grab(controller):
+        box["hist"] = controller.PixelHistory(rid, x, y, renderdoc.Subresource(),
+                                              renderdoc.CompType.Typeless)
+
+    rd.Replay().BlockInvoke(grab)
+
+    tex = rd.GetTexture(rid)
+    lines = ["Pixel history for (%d, %d) on %s (from EID %d):" %
+             (x, y, tex.name if tex is not None else "output", eid)]
+    for h in box.get("hist", []):
+        flags = []
+        for attr in ("discard", "backfaceCulled", "depthClipped", "depthFailed", "stencilFailed"):
+            try:
+                if getattr(h, attr):
+                    flags.append(attr)
+            except Exception:
+                pass
+        line = "EID %d: %s -> %s" % (h.eventId, _pv_str(h.preMod), _pv_str(h.postMod))
+        if flags:
+            line += " [" + ",".join(flags) + "]"
+        lines.append(line)
+    if len(lines) == 1:
+        lines.append("(no history entries at this pixel)")
+    return {"history": "\n".join(lines), "count": len(box.get("hist", []))}
+
+
 TOOLS = {
     "capture_info": tool_capture_info,
     "list_events": tool_list_events,
     "fetch_eid": tool_fetch_eid,
     "get_texture": tool_get_texture,
+    "read_texture_b64": tool_read_texture_b64,
+    "pixel_history": tool_pixel_history,
     "run_python": tool_run_python,
 }
 

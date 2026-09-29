@@ -3407,22 +3407,30 @@ void AgentAssistantPanel::analyzeFullFrame()
 
   body += lit("\n\n") + formatEventTree();
 
-  body += lit("\n\n=== Per-pass summaries (sampled draws for each top-level pass) ===");
-  int passIdx = 0;
-  for(const ActionDescription &a : m_Ctx.CurRootActions())
+  if(ui->analyzeDeepCheck->isChecked())
   {
-    if(a.children.empty())
-      continue;
-    if(++passIdx > 8)
+    body += lit("\n\n=== Per-pass summaries (sampled draws for each top-level pass) ===");
+    int passIdx = 0;
+    for(const ActionDescription &a : m_Ctx.CurRootActions())
     {
-      body += lit("\n(further top-level passes omitted; use the scan_pass tool for them)");
-      break;
+      if(a.children.empty())
+        continue;
+      if(++passIdx > 8)
+      {
+        body += lit("\n(further top-level passes omitted; use the scan_pass tool for them)");
+        break;
+      }
+      QString name = QString::fromUtf8(a.customName.c_str());
+      if(name.isEmpty())
+        name = QStringLiteral("pass");
+      body += QStringLiteral("\n\n--- Pass: %1 (EID %2) ---\n").arg(name).arg(a.eventId);
+      body += scanPassSummary(a.eventId);
     }
-    QString name = QString::fromUtf8(a.customName.c_str());
-    if(name.isEmpty())
-      name = QStringLiteral("pass");
-    body += QStringLiteral("\n\n--- Pass: %1 (EID %2) ---\n").arg(name).arg(a.eventId);
-    body += scanPassSummary(a.eventId);
+  }
+  else
+  {
+    body += lit("\n\nPer-pass sampling was skipped for speed. Use the scan_pass tool on the "
+                "marker EIDs above to sample each pass you find relevant.");
   }
 
   if(ui->includeDisasmCheck->isChecked())

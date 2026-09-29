@@ -63,6 +63,8 @@ ZCode / Claude Code 的 MCP 配置（`~/.zcode/mcp.json` 或对应客户端的�
 | `list_events` | 帧事件树文本（marker/draw/dispatch/clear/copy/present + EID），支持 `max_depth`/`max_lines` |
 | `fetch_eid` | 跳转到指定事件并返回摘要：动作名、绘制参数、绑定的颜色输出和深度缓冲（尺寸/格式） |
 | `get_texture` | 把指定事件的颜色输出/深度缓冲存成 PNG 并返回路径（AI 客户端随后可直接读图） |
+| `read_texture_b64` | 同上但直接返回 base64 PNG 内容（可指定输出序号/深度、最长边限制） |
+| `pixel_history` | 查询单个像素的完整历史：每帧内每次修改的前后值与 rejection 标志（discard/深度/模板失败等） |
 | `run_python` | 在 RenderDoc UI 线程执行任意 python，可访问 `pyrenderdoc` / `renderdoc` / `qrenderdoc`；设置 `result` 变量返回值。万能兜底 |
 
 典型用法（在 AI 客户端里）：

@@ -623,14 +623,12 @@ int main(int argc, char *argv[])
     else
       Analytics::Load();
 
-    bool isDarkTheme = IsDarkTheme();
-
     bool styleSet = config.SetStyle();
 
     // unrecognised style, or empty (none set), choose a default
     if(!styleSet)
     {
-      config.UIStyle = isDarkTheme ? lit("RDDark") : lit("RDLight");
+      config.UIStyle = lit("RDAnimeGlass");
 
       config.SetStyle();
     }
