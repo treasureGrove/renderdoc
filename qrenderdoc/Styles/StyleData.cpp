@@ -44,11 +44,11 @@ const ThemeDescriptor availStyles[] = {
         []() { return new RDStyle(RDStyle::Dark); }),
 
     ThemeDescriptor(
-        lit("RDAnimeGlass"), QApplication::translate("RDStyle", "Anime (ACG)"),
+        lit("RDAnimeGlass"), QApplication::translate("RDStyle", "Grove Glass (ACG)"),
         QApplication::translate(
             "RDStyle",
-            "Anime (ACG): dark theme with cyan accent, based on the ElaWidgetTools palette "
-            "(Liniyous/ElaWidgetTools, MIT). Rounded corners, semi-transparent cards."),
+            "Grove Glass: emerald-glass theme aligned with the TAWEBTOOL design language. "
+            "Teal accents, rounded corners, semi-transparent cards, KaiTi-style text."),
         []() { return new RDStyle(RDStyle::AnimeGlass); }),
 
     ThemeDescriptor(

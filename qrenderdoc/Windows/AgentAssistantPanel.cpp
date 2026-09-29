@@ -102,8 +102,8 @@ enum AgentDataSkill : uint32_t
   AgentSkill_All = 0xFFFFFFFFu
 };
 
-// ACG frosted-glass theme with anime background image via QSS border-image.
-// All controls use white semi-transparent glass over the background.
+// Grove Glass: TAWEBTOOL-aligned emerald frosted-glass theme with background image.
+// White semi-transparent glass over the backdrop; emerald #26a884 accents.
 static QString agentPanelStylesheetAnime()
 {
   return QStringLiteral(R"CSS(
@@ -115,13 +115,13 @@ static QString agentPanelStylesheetAnime()
   background: transparent;
 }
 #AgentAssistantPanel QLabel {
-  font: 14px "Segoe UI", "Microsoft YaHei";
-  color: #1A2D42;
+  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  color: #17242B;
   background-color: transparent;
 }
 #AgentAssistantPanel #helpLabel {
-  font: 12px "Segoe UI", "Microsoft YaHei";
-  color: #2A3F58;
+  font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  color: #3F545C;
   background-color: rgba(255, 255, 255, 140);
   padding: 8px 10px;
   border-radius: 8px;
@@ -130,7 +130,7 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(255, 255, 255, 60);
   border-top: 1px solid rgba(255, 255, 255, 90);
   border-left: 1px solid rgba(255, 255, 255, 70);
-  border-radius: 14px;
+  border-radius: 18px;
   background-color: rgba(255, 255, 255, 78);
   margin-top: 16px;
   padding: 16px 12px 12px 12px;
@@ -139,20 +139,20 @@ static QString agentPanelStylesheetAnime()
   subcontrol-origin: margin;
   left: 14px;
   padding: 0 8px;
-  font: bold 14px "Segoe UI", "Microsoft YaHei";
+  font: bold 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #0F2438;
 }
 #AgentAssistantPanel QLineEdit,
 #AgentAssistantPanel QComboBox {
   background-color: rgba(255, 255, 255, 92);
   border: 1px solid rgba(255, 255, 255, 60);
-  border-bottom: 1px solid rgba(200, 220, 240, 80);
+  border-bottom: 1px solid rgba(117, 210, 184, 110);
   border-radius: 8px;
-  font: 14px "Segoe UI", "Microsoft YaHei";
+  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 5px 10px;
-  color: #1A2D42;
+  color: #17242B;
   min-height: 22px;
-  selection-background-color: rgba(92, 173, 224, 160);
+  selection-background-color: rgba(38, 168, 132, 160);
   selection-color: white;
 }
 #AgentAssistantPanel QComboBox::drop-down {
@@ -163,15 +163,15 @@ static QString agentPanelStylesheetAnime()
   image: none;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 5px solid #2A5580;
+  border-top: 5px solid #147A63;
   margin-right: 8px;
 }
 #AgentAssistantPanel QComboBox QAbstractItemView {
   background-color: rgba(248, 250, 252, 245);
   border: 1px solid rgba(100, 140, 180, 90);
   border-radius: 6px;
-  color: #1A2D42;
-  selection-background-color: rgba(92, 173, 224, 140);
+  color: #17242B;
+  selection-background-color: rgba(38, 168, 132, 140);
   selection-color: #0F1A28;
   padding: 4px;
   outline: none;
@@ -181,7 +181,7 @@ static QString agentPanelStylesheetAnime()
   min-height: 22px;
 }
 #AgentAssistantPanel QComboBox QAbstractItemView::item:hover {
-  background-color: rgba(92, 173, 224, 60);
+  background-color: rgba(38, 168, 132, 60);
 }
 #AgentAssistantPanel QLineEdit:hover,
 #AgentAssistantPanel QComboBox:hover {
@@ -189,24 +189,24 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(255, 255, 255, 90);
 }
 #AgentAssistantPanel QLineEdit:focus {
-  border: 1px solid rgba(92, 173, 224, 160);
-  border-bottom: 1px solid rgba(74, 154, 213, 180);
+  border: 1px solid rgba(38, 168, 132, 160);
+  border-bottom: 1px solid rgba(20, 122, 99, 200);
 }
 #AgentAssistantPanel QLineEdit:disabled,
 #AgentAssistantPanel QComboBox:disabled {
-  color: #6A7D90;
+  color: #5F7078;
   background-color: rgba(255, 255, 255, 45);
   border: 1px solid rgba(255, 255, 255, 25);
 }
 #AgentAssistantPanel QPlainTextEdit {
   background-color: rgba(255, 255, 255, 88);
-  color: #1A2D42;
+  color: #17242B;
   border: 1px solid rgba(255, 255, 255, 50);
   border-top: 1px solid rgba(255, 255, 255, 70);
   border-radius: 12px;
   padding: 10px;
   font: 11pt Consolas, "Cascadia Mono", "Courier New", monospace;
-  selection-background-color: rgba(92, 173, 224, 160);
+  selection-background-color: rgba(38, 168, 132, 160);
   selection-color: white;
 }
 #AgentAssistantPanel #chatLog {
@@ -214,21 +214,21 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(255, 255, 255, 40);
   border-top: 1px solid rgba(255, 255, 255, 65);
   border-left: 1px solid rgba(255, 255, 255, 50);
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 8px;
-  font: 13px "Segoe UI", "Microsoft YaHei";
-  color: #1A2D42;
+  font: 13px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  color: #17242B;
 }
 #AgentAssistantPanel #snapshotToggleBtn {
   background-color: transparent;
   border: none;
-  color: #0B5A9E;
-  font: bold 13px "Segoe UI", "Microsoft YaHei";
+  color: #147A63;
+  font: bold 13px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   text-align: left;
   padding: 2px 4px;
 }
 #AgentAssistantPanel #snapshotToggleBtn:hover {
-  color: #094A82;
+  color: #0E5C4B;
   text-decoration: underline;
 }
 #AgentAssistantPanel QPushButton {
@@ -236,8 +236,8 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(255, 255, 255, 50);
   border-top: 1px solid rgba(255, 255, 255, 75);
   border-radius: 8px;
-  color: #1F3548;
-  font: 14px "Segoe UI", "Microsoft YaHei";
+  color: #17242B;
+  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 5px 12px 6px 12px;
   min-height: 24px;
 }
@@ -245,10 +245,10 @@ static QString agentPanelStylesheetAnime()
   background-color: rgba(255, 255, 255, 88);
   border: 1px solid rgba(255, 255, 255, 80);
   border-top: 1px solid rgba(255, 255, 255, 110);
-  color: #0F1E2C;
+  color: #11221E;
 }
 #AgentAssistantPanel QPushButton:pressed {
-  color: #2A4058;
+  color: #3F545C;
   background-color: rgba(255, 255, 255, 30);
 }
 #AgentAssistantPanel QPushButton:disabled {
@@ -258,38 +258,38 @@ static QString agentPanelStylesheetAnime()
 }
 #AgentAssistantPanel #sendLLMButton {
   color: white;
-  background-color: rgba(92, 173, 224, 180);
-  border: 1px solid rgba(92, 173, 224, 140);
-  border-top: 1px solid rgba(140, 210, 250, 180);
+  background-color: rgba(38, 168, 132, 185);
+  border: 1px solid rgba(38, 168, 132, 140);
+  border-top: 1px solid rgba(55, 200, 160, 190);
   font-weight: bold;
 }
 #AgentAssistantPanel #sendLLMButton:hover {
-  background-color: rgba(92, 173, 224, 220);
-  border-top: 1px solid rgba(150, 220, 255, 200);
+  background-color: rgba(38, 168, 132, 220);
+  border-top: 1px solid rgba(90, 215, 175, 210);
 }
 #AgentAssistantPanel #sendLLMButton:pressed {
-  background-color: rgba(70, 150, 200, 200);
-  border: 1px solid rgba(70, 150, 200, 180);
+  background-color: rgba(20, 122, 99, 210);
+  border: 1px solid rgba(20, 122, 99, 190);
 }
 #AgentAssistantPanel #sendLLMButton:disabled {
   color: rgba(180, 200, 220, 100);
-  background-color: rgba(92, 173, 224, 40);
-  border: 1px solid rgba(92, 173, 224, 30);
+  background-color: rgba(38, 168, 132, 40);
+  border: 1px solid rgba(38, 168, 132, 30);
 }
 #AgentAssistantPanel #continueToChatButton {
   color: white;
-  background-color: rgba(92, 173, 224, 180);
-  border: 1px solid rgba(92, 173, 224, 140);
-  border-top: 1px solid rgba(140, 210, 250, 180);
+  background-color: rgba(38, 168, 132, 185);
+  border: 1px solid rgba(38, 168, 132, 140);
+  border-top: 1px solid rgba(55, 200, 160, 190);
   font-weight: bold;
   min-height: 30px;
 }
 #AgentAssistantPanel #continueToChatButton:hover {
-  background-color: rgba(92, 173, 224, 220);
+  background-color: rgba(38, 168, 132, 220);
 }
 #AgentAssistantPanel QCheckBox {
-  color: #1F3548;
-  font: 14px "Segoe UI", "Microsoft YaHei";
+  color: #17242B;
+  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   spacing: 8px;
   min-height: 22px;
 }
@@ -305,12 +305,12 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(255, 255, 255, 80);
 }
 #AgentAssistantPanel QCheckBox::indicator:checked {
-  background-color: rgba(92, 173, 224, 180);
-  border: 1px solid rgba(92, 173, 224, 150);
+  background-color: rgba(38, 168, 132, 185);
+  border: 1px solid rgba(38, 168, 132, 150);
 }
 #AgentAssistantPanel QCheckBox::indicator:checked:hover {
-  background-color: rgba(92, 173, 224, 220);
-  border: 1px solid rgba(92, 173, 224, 190);
+  background-color: rgba(38, 168, 132, 220);
+  border: 1px solid rgba(38, 168, 132, 190);
 }
 #AgentAssistantPanel QCheckBox:disabled {
   color: rgba(180, 200, 220, 80);
@@ -320,55 +320,55 @@ static QString agentPanelStylesheetAnime()
   background-color: rgba(255, 255, 255, 12);
 }
 #AgentAssistantPanel #statusLabel {
-  font: bold 12px "Segoe UI", "Microsoft YaHei";
-  color: #0F2840;
+  font: bold 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  color: #0D2B24;
   padding: 2px 4px;
   background-color: rgba(255, 255, 255, 100);
   border-radius: 6px;
 }
 #AgentAssistantPanel #tokenUsageLabel {
-  font: 11px "Segoe UI", "Microsoft YaHei";
-  color: #2A4560;
+  font: 11px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  color: #5F7078;
   padding: 0px 4px;
   background-color: transparent;
 }
 #AgentAssistantPanel #stopButton {
   color: white;
-  background-color: rgba(224, 90, 70, 170);
-  border: 1px solid rgba(224, 90, 70, 130);
-  border-top: 1px solid rgba(255, 140, 120, 150);
+  background-color: rgba(220, 70, 60, 175);
+  border: 1px solid rgba(220, 70, 60, 135);
+  border-top: 1px solid rgba(255, 130, 120, 150);
   font-weight: bold;
 }
 #AgentAssistantPanel #stopButton:hover {
-  background-color: rgba(224, 90, 70, 210);
-  border-top: 1px solid rgba(255, 150, 130, 180);
+  background-color: rgba(220, 70, 60, 215);
+  border-top: 1px solid rgba(255, 140, 130, 180);
 }
 #AgentAssistantPanel #stopButton:pressed {
-  background-color: rgba(200, 70, 50, 200);
+  background-color: rgba(180, 45, 40, 205);
 }
 #AgentAssistantPanel #stopButton:disabled {
   color: rgba(180, 200, 220, 80);
-  background-color: rgba(200, 100, 80, 30);
-  border: 1px solid rgba(200, 100, 80, 20);
+  background-color: rgba(180, 45, 40, 30);
+  border: 1px solid rgba(180, 45, 40, 20);
 }
 #AgentAssistantPanel #searchEdit {
   background-color: rgba(255, 255, 255, 90);
   border: 1px solid rgba(255, 255, 255, 55);
   border-radius: 8px;
-  font: 12px "Segoe UI", "Microsoft YaHei";
+  font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 3px 8px;
   min-height: 18px;
-  color: #1A2D42;
+  color: #17242B;
 }
 #AgentAssistantPanel #searchNextBtn,
 #AgentAssistantPanel #searchCloseBtn {
   padding: 2px 8px;
   min-height: 18px;
-  font: 12px "Segoe UI", "Microsoft YaHei";
+  font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   background-color: rgba(255, 255, 255, 75);
   border: 1px solid rgba(255, 255, 255, 45);
   border-radius: 6px;
-  color: #1F3548;
+  color: #17242B;
 }
 #AgentAssistantPanel #searchNextBtn:hover,
 #AgentAssistantPanel #searchCloseBtn:hover {
@@ -2024,14 +2024,14 @@ void AgentAssistantPanel::paintEvent(QPaintEvent *)
     int x = (width() - m_bgScaled.width()) / 2;
     int y = (height() - m_bgScaled.height()) / 2;
     p.drawPixmap(x, y, m_bgScaled);
-    p.fillRect(rect(), QColor(0, 0, 0, 30));
+    p.fillRect(rect(), QColor(7, 20, 17, 45));
   }
   else
   {
     QLinearGradient grad(0, 0, width(), height());
-    grad.setColorAt(0.0, QColor(0xED, 0xF2, 0xFA));
-    grad.setColorAt(0.5, QColor(0xDB, 0xE8, 0xF5));
-    grad.setColorAt(1.0, QColor(0xC8, 0xDE, 0xF0));
+    grad.setColorAt(0.0, QColor(0xEE, 0xF7, 0xF3));
+    grad.setColorAt(0.5, QColor(0xDF, 0xEF, 0xE8));
+    grad.setColorAt(1.0, QColor(0xD0, 0xE8, 0xDD));
     p.fillRect(rect(), grad);
   }
 }

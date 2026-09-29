@@ -244,7 +244,8 @@ DECLARE_REFLECTION_STRUCT(BugReport);
                                                                                                    \
   DOCUMENT(                                                                                        \
       "The style to load for the UI. Possible values include 'Native', 'RDLight', 'RDDark', "    \
-      "'RDAnimeGlass' (Anime/ACG light theme). Defaults to RDAnimeGlass."                          \
+      "'RDAnimeGlass' (Grove Glass emerald theme, aligned with the TAWEBTOOL design "              \
+      "language). Defaults to RDAnimeGlass."                                                       \
       ""                                                                                           \
       ":type: str");                                                                               \
   CONFIG_SETTING_VAL(public, QString, rdcstr, UIStyle, "RDAnimeGlass")                                         \
