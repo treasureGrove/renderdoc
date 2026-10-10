@@ -173,4 +173,7 @@
         <file>bookmark_blue.png</file>
         <file>bookmark_blue@2x.png</file>
     </qresource>
+    <qresource prefix="/fonts">
+        <file>fonts/LXGWWenKaiScreen.ttf</file>
+    </qresource>
 </RCC>

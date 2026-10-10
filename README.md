@@ -2,6 +2,8 @@
 
 本仓库在 [RenderDoc](https://github.com/baldurk/renderdoc) 上游基础上，集成了 **Pipeline Agent**：在图形调试器内直接连接大模型，针对**当前已加载的 Capture** 提问，辅助阅读事件树、管线状态、Shader 反汇编，并支持让模型通过内置指令拉取指定 EID 的数据以梳理渲染管线。
 
+> **默认主题 Grove Glass**：对齐 [TAWEBTOOL](https://github.com/) 设计语言的明亮玻璃主题（白磨砂卡片 + 翡翠 `#26a884` 强调 + 楷体风格文字）。所用 **LXGW WenKai Screen** 字体已内嵌进程序（SIL OFL 1.1，见 `qrenderdoc/Resources/fonts/`），无需系统安装。
+
 > **说明**：以下为该 Agent 功能的用法说明。完整 RenderDoc 通用文档仍见上游 [renderdoc.org/docs](https://renderdoc.org/docs/) 与仓库内 [`docs/`](docs/)。
 
 ---
