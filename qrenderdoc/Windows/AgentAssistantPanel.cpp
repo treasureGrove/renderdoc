@@ -115,12 +115,12 @@ static QString agentPanelStylesheetAnime()
   background: transparent;
 }
 #AgentAssistantPanel QLabel {
-  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 14px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #17242B;
   background-color: transparent;
 }
 #AgentAssistantPanel #helpLabel {
-  font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 12px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #3F545C;
   background-color: rgba(248, 252, 251, 225);
   border: 1px solid rgba(117, 210, 184, 70);
@@ -139,7 +139,7 @@ static QString agentPanelStylesheetAnime()
   subcontrol-origin: margin;
   left: 14px;
   padding: 0 8px;
-  font: bold 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: bold 14px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #147A63;
 }
 #AgentAssistantPanel QLineEdit,
@@ -148,7 +148,7 @@ static QString agentPanelStylesheetAnime()
   border: 1px solid rgba(117, 210, 184, 70);
   border-bottom: 1px solid rgba(55, 177, 140, 105);
   border-radius: 8px;
-  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 14px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 5px 10px;
   color: #17242B;
   min-height: 22px;
@@ -214,14 +214,14 @@ static QString agentPanelStylesheetAnime()
   border-left: 1px solid rgba(117, 210, 184, 85);
   border-radius: 18px;
   padding: 8px;
-  font: 13px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 13px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #17242B;
 }
 #AgentAssistantPanel #snapshotToggleBtn {
   background-color: transparent;
   border: none;
   color: #147A63;
-  font: bold 13px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: bold 13px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   text-align: left;
   padding: 2px 4px;
 }
@@ -235,7 +235,7 @@ static QString agentPanelStylesheetAnime()
   border-bottom: 1px solid rgba(55, 177, 140, 105);
   border-radius: 8px;
   color: #17242B;
-  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 14px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 5px 12px 6px 12px;
   min-height: 24px;
 }
@@ -286,7 +286,7 @@ static QString agentPanelStylesheetAnime()
 }
 #AgentAssistantPanel QCheckBox {
   color: #17242B;
-  font: 14px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 14px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   spacing: 8px;
   min-height: 22px;
 }
@@ -317,7 +317,7 @@ static QString agentPanelStylesheetAnime()
   background-color: rgba(255, 255, 255, 110);
 }
 #AgentAssistantPanel #statusLabel {
-  font: bold 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: bold 12px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #147A63;
   padding: 2px 4px;
   background-color: rgba(255, 255, 255, 235);
@@ -325,7 +325,7 @@ static QString agentPanelStylesheetAnime()
   border-radius: 6px;
 }
 #AgentAssistantPanel #tokenUsageLabel {
-  font: 11px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 11px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   color: #5F7078;
   padding: 0px 4px;
   background-color: transparent;
@@ -353,7 +353,7 @@ static QString agentPanelStylesheetAnime()
   background-color: rgba(255, 255, 255, 235);
   border: 1px solid rgba(117, 210, 184, 75);
   border-radius: 8px;
-  font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 12px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   padding: 3px 8px;
   min-height: 18px;
   color: #17242B;
@@ -362,7 +362,7 @@ static QString agentPanelStylesheetAnime()
 #AgentAssistantPanel #searchCloseBtn {
   padding: 2px 8px;
   min-height: 18px;
-  font: 12px "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
+  font: 12px "RD WenKai", "LXGW WenKai Screen", "LXGW WenKai", "KaiTi", "Microsoft YaHei";
   background-color: rgba(255, 255, 255, 225);
   border: 1px solid rgba(117, 210, 184, 80);
   border-radius: 6px;

@@ -624,12 +624,13 @@ int main(int argc, char *argv[])
     else
       Analytics::Load();
 
-    // register the bundled LXGW WenKai Screen font so the Grove Glass theme's font stack
-    // resolves without a system install (SIL OFL 1.1, see Resources/fonts/)
+    // register the bundled RD WenKai font (GB2312 subset of LXGW WenKai Screen, SIL OFL
+    // 1.1, see Resources/fonts/) so the Grove Glass theme's font stack resolves without a
+    // system install; rare glyphs outside the subset fall back down the QSS font stack
     {
-      int fontId = QFontDatabase::addApplicationFont(lit(":/fonts/LXGWWenKaiScreen.ttf"));
+      int fontId = QFontDatabase::addApplicationFont(lit(":/fonts/RDWenKai.ttf"));
       if(fontId < 0)
-        qWarning() << "Could not load bundled LXGW WenKai Screen font";
+        qWarning() << "Could not load bundled RD WenKai font";
     }
 
     bool styleSet = config.SetStyle();
