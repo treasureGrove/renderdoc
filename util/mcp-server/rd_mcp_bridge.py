@@ -19,13 +19,21 @@ Protocol on the TCP socket is newline-delimited JSON:
 import json
 import os
 import queue
+import re
 import socket
+import sys
 import tempfile
 import threading
 import contextlib
 
 import renderdoc
 import qrenderdoc
+
+_PKG_DIR = os.path.dirname(os.path.abspath(__file__))
+if _PKG_DIR not in sys.path:
+    sys.path.insert(0, _PKG_DIR)
+
+import rd_frame_stats
 
 # NOTE: the `pyrenderdoc` CaptureContext object is injected into this module by
 # qrenderdoc only after import, as the argument to register(). Use `register()`
@@ -43,6 +51,24 @@ _call_ids = [1]
 _stop = threading.Event()
 _server = None
 _timer = None
+_hotspot_dialog = None
+
+_SHADER_STAGES = (
+    "Vertex",
+    "Hull",
+    "Domain",
+    "Geometry",
+    "Pixel",
+    "Compute",
+    "Task",
+    "Mesh",
+    "RayGen",
+    "Intersection",
+    "AnyHit",
+    "ClosestHit",
+    "Miss",
+    "Callable",
+)
 
 
 def _null():
@@ -100,6 +126,113 @@ def _walk_tree(actions, depth, max_depth, lines, budget):
                 _walk_tree(a.children, depth + 1, max_depth, lines, budget)
             else:
                 lines.append("%s... (%d children, deeper events omitted)" % ("  " * (depth + 1), len(a.children)))
+
+
+def _kind(flags):
+    draw = int(renderdoc.ActionFlags.Drawcall)
+    dispatch = (
+        int(renderdoc.ActionFlags.Dispatch)
+        | int(renderdoc.ActionFlags.MeshDispatch)
+        | int(renderdoc.ActionFlags.DispatchRay)
+    )
+    if flags & draw:
+        return "draw"
+    if flags & dispatch:
+        return "dispatch"
+    if flags & int(renderdoc.ActionFlags.PushMarker):
+        return "marker"
+    if flags & int(renderdoc.ActionFlags.Clear):
+        return "clear"
+    if flags & (int(renderdoc.ActionFlags.Copy) | int(renderdoc.ActionFlags.Resolve)):
+        return "copy"
+    if flags & int(renderdoc.ActionFlags.Present):
+        return "present"
+    if flags & int(renderdoc.ActionFlags.MultiAction):
+        return "marker"
+    return "other"
+
+
+def _actions_to_tree(actions):
+    out = []
+    indirect_flag = int(getattr(renderdoc.ActionFlags, "Indirect", 0) or 0)
+    for a in actions:
+        flags = int(a.flags)
+        kind = _kind(flags)
+        name = a.customName or kind
+        node = {
+            "eid": int(a.eventId),
+            "name": str(name),
+            "kind": kind,
+            "num_indices": int(a.numIndices),
+            "num_instances": int(a.numInstances),
+            "indirect": bool(indirect_flag and (flags & indirect_flag)),
+            "children": _actions_to_tree(a.children) if a.children else [],
+        }
+        if kind == "dispatch":
+            try:
+                d = a.dispatchDimension
+                node["dispatch"] = (int(d[0]), int(d[1]), int(d[2]))
+            except Exception:
+                node["dispatch"] = (0, 0, 0)
+        out.append(node)
+    return out
+
+
+def _require_capture():
+    if rd is None or not rd.IsCaptureLoaded():
+        return {"error": "no capture loaded"}
+    return None
+
+
+def _flat_actions():
+    return rd_frame_stats.flatten(_actions_to_tree(rd.CurRootActions()))
+
+
+def _resource_name(rid):
+    try:
+        name = rd.GetResourceName(rid)
+        if name:
+            return str(name)
+    except Exception:
+        pass
+    return str(rid)
+
+
+def _texture_rows():
+    rows = []
+    for tex in rd.GetTextures():
+        fmt = ""
+        try:
+            fmt = str(tex.format.Name())
+        except Exception:
+            pass
+        rows.append(
+            {
+                "name": _resource_name(tex.resourceId),
+                "width": int(tex.width),
+                "height": int(tex.height),
+                "depth": int(tex.depth),
+                "mips": int(tex.mips),
+                "arraysize": int(tex.arraysize),
+                "format": fmt,
+                "byte_size": int(tex.byteSize),
+            }
+        )
+    return rows
+
+
+def _buffer_rows():
+    rows = []
+    for buf in rd.GetBuffers():
+        rows.append({"name": _resource_name(buf.resourceId), "length": int(buf.length)})
+    return rows
+
+
+def _limit(args, key, default):
+    try:
+        return max(1, int(args.get(key, default)))
+    except (TypeError, ValueError):
+        return default
 
 
 def tool_capture_info(args):
@@ -209,6 +342,172 @@ def tool_get_texture(args):
         if not os.path.exists(path):
             return {"error": "SaveTexture did not produce %s" % path}
     return {"files": [p for _, p in jobs], "eid": eid}
+
+
+def tool_frame_hotspots(args):
+    err = _require_capture()
+    if err:
+        return err
+    limit = _limit(args, "limit", 20)
+    summary = rd_frame_stats.summarize(
+        _flat_actions(),
+        _texture_rows(),
+        _buffer_rows(),
+        draw_limit=limit,
+        texture_limit=limit,
+        buffer_limit=min(limit, 15),
+        pass_limit=max(limit, 40),
+    )
+    return summary
+
+
+def tool_pass_costs(args):
+    err = _require_capture()
+    if err:
+        return err
+    rows = rd_frame_stats.pass_costs(_flat_actions(), limit=_limit(args, "limit", 40))
+    return {"passes": rows, "text": rd_frame_stats.format_passes(rows)}
+
+
+def tool_heaviest_draws(args):
+    err = _require_capture()
+    if err:
+        return err
+    rows = rd_frame_stats.heaviest_draws(_flat_actions(), limit=_limit(args, "limit", 20))
+    return {"draws": rows, "text": rd_frame_stats.format_draws(rows)}
+
+
+def tool_search_events(args):
+    err = _require_capture()
+    if err:
+        return err
+    query = str(args.get("query") or args.get("name") or "").strip()
+    if not query:
+        return {"error": "query is required"}
+    hits = rd_frame_stats.search_events(_flat_actions(), query, limit=_limit(args, "limit", 50))
+    return {"matches": hits, "text": rd_frame_stats.format_search(query, hits)}
+
+
+def tool_resource_census(args):
+    err = _require_capture()
+    if err:
+        return err
+    limit = _limit(args, "limit", 20)
+    textures = _texture_rows()
+    buffers = _buffer_rows()
+    top_tex = rd_frame_stats.top_resources(textures, "byte_size", limit)
+    top_buf = rd_frame_stats.top_resources(buffers, "length", limit)
+    text = (
+        "# Resource census\n\n## Largest textures\n\n%s\n## Largest buffers\n\n%s"
+        % (rd_frame_stats.format_textures(top_tex), rd_frame_stats.format_buffers(top_buf))
+    )
+    return {
+        "texture_count": len(textures),
+        "buffer_count": len(buffers),
+        "texture_bytes": sum(int(t["byte_size"]) for t in textures),
+        "buffer_bytes": sum(int(b["length"]) for b in buffers),
+        "textures": top_tex,
+        "buffers": top_buf,
+        "text": text,
+    }
+
+
+def _refl_names(items, label):
+    out = []
+    for item in items or []:
+        try:
+            name = str(item.name or label)
+            bind = "%s:%s" % (item.fixedBindSetOrSpace, item.fixedBindNumber)
+            extra = ""
+            if label == "cb":
+                extra = " (%d bytes, %d vars)" % (int(item.byteSize), len(item.variables))
+            out.append("%s @ %s%s" % (name, bind, extra))
+        except Exception:
+            continue
+    return out
+
+
+def _collect_shader_stages():
+    pipe = rd.CurPipelineState()
+    pipe_obj = pipe.GetGraphicsPipelineObject()
+    if pipe_obj == _null():
+        pipe_obj = pipe.GetComputePipelineObject()
+    stages = []
+    for name in _SHADER_STAGES:
+        stage_enum = getattr(renderdoc.ShaderStage, name, None)
+        if stage_enum is None:
+            continue
+        try:
+            refl = pipe.GetShaderReflection(stage_enum)
+        except Exception:
+            continue
+        if not refl:
+            continue
+        try:
+            if refl.resourceId == _null():
+                continue
+        except Exception:
+            continue
+        entry = ""
+        try:
+            entry = str(refl.entryPoint or "")
+        except Exception:
+            pass
+        if not entry:
+            try:
+                entry = str(pipe.GetShaderEntryPoint(stage_enum) or "")
+            except Exception:
+                pass
+        stages.append(
+            {
+                "stage": name,
+                "entry": entry,
+                "resource_id": str(refl.resourceId),
+                "constant_blocks": _refl_names(getattr(refl, "constantBlocks", []), "cb"),
+                "textures": _refl_names(getattr(refl, "readOnlyResources", []), "tex"),
+                "samplers": _refl_names(getattr(refl, "samplers", []), "smp"),
+                "disassembly": "",
+                "_refl": refl,
+                "_pipe": pipe_obj,
+            }
+        )
+    return stages
+
+
+def tool_get_shader(args):
+    err = _require_capture()
+    if err:
+        return err
+    eid = int(args.get("eid", 0) or 0) or rd.CurEvent()
+    action = rd.GetAction(eid)
+    if action is None:
+        return {"error": "EID %d not found" % eid}
+    rd.SetEventID(None, eid, eid, False)
+    try:
+        max_chars = max(500, min(int(args.get("max_chars", 8000)), 40000))
+    except (TypeError, ValueError):
+        max_chars = 8000
+    include = args.get("disassembly", True)
+    if isinstance(include, str):
+        include = include.lower() not in ("0", "false", "no")
+    stage_filter = str(args.get("stage") or "")
+    stages = _collect_shader_stages()
+    if include and stages:
+        def grab(controller):
+            for info in stages:
+                try:
+                    text = controller.DisassembleShader(info["_pipe"], info["_refl"], "")
+                    info["disassembly"] = str(text or "")
+                except Exception as exc:
+                    info["disassembly"] = "(disassembly failed: %s)" % exc
+
+        rd.Replay().BlockInvoke(grab)
+    for info in stages:
+        info.pop("_refl", None)
+        info.pop("_pipe", None)
+    text = rd_frame_stats.format_shader_stages(stages, stage_filter=stage_filter, max_chars=max_chars)
+    shown = rd_frame_stats.select_stages(stages, stage_filter)
+    return {"eid": eid, "stage_count": len(shown), "text": text}
 
 
 def tool_run_python(args):
@@ -347,6 +646,127 @@ def tool_pixel_history(args):
     return {"history": "\n".join(lines), "count": len(box.get("hist", []))}
 
 
+def _hotspot_report():
+    return rd_frame_stats.format_report(_flat_actions(), _texture_rows(), _buffer_rows())
+
+
+def _eid_in_line(line):
+    return rd_frame_stats.eid_from_report_line(line)
+
+
+def _open_hotspots(_ctx, _data):
+    global _hotspot_dialog
+    from PySide2.QtGui import QFont
+    from PySide2.QtWidgets import (
+        QApplication,
+        QDialog,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QMessageBox,
+        QPlainTextEdit,
+        QPushButton,
+        QVBoxLayout,
+    )
+
+    if rd is None or not rd.IsCaptureLoaded():
+        QMessageBox.information(None, "Frame Hotspots", "Load a capture first.")
+        return
+
+    parent = None
+    try:
+        parent = rd.GetMainWindow().Widget()
+    except Exception:
+        parent = None
+
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Frame Hotspots")
+    dlg.resize(920, 680)
+    layout = QVBoxLayout(dlg)
+    layout.addWidget(
+        QLabel(
+            "Pass cost, heaviest draws, and largest textures/buffers. "
+            "Select a table row and Jump, or type an EID."
+        )
+    )
+    text = QPlainTextEdit()
+    text.setReadOnly(True)
+    text.setFont(QFont("Consolas", 10))
+    text.setPlainText(_hotspot_report())
+    layout.addWidget(text)
+
+    row = QHBoxLayout()
+    find_edit = QLineEdit()
+    find_edit.setPlaceholderText("search pass / draw name")
+    eid_edit = QLineEdit()
+    eid_edit.setPlaceholderText("EID")
+    eid_edit.setMaximumWidth(120)
+    find_btn = QPushButton("Find")
+    jump_btn = QPushButton("Jump to EID")
+    copy_btn = QPushButton("Copy")
+    refresh_btn = QPushButton("Refresh")
+    row.addWidget(find_edit, 1)
+    row.addWidget(find_btn)
+    row.addWidget(eid_edit)
+    row.addWidget(jump_btn)
+    row.addWidget(copy_btn)
+    row.addWidget(refresh_btn)
+    layout.addLayout(row)
+
+    def do_refresh():
+        if not rd.IsCaptureLoaded():
+            text.setPlainText("Load a capture first.")
+            return
+        text.setPlainText(_hotspot_report())
+
+    def do_find():
+        query = find_edit.text().strip()
+        if not query:
+            do_refresh()
+            return
+        if not rd.IsCaptureLoaded():
+            text.setPlainText("Load a capture first.")
+            return
+        hits = rd_frame_stats.search_events(_flat_actions(), query, limit=80)
+        text.setPlainText(rd_frame_stats.format_search(query, hits))
+
+    def do_jump():
+        raw = eid_edit.text().strip()
+        eid = None
+        if raw:
+            match = re.search(r"\d+", raw)
+            if match:
+                eid = int(match.group(0))
+        if eid is None:
+            eid = _eid_in_line(text.textCursor().block().text())
+        if eid is None:
+            return
+        rd.SetEventID(None, eid, eid, False)
+        eid_edit.setText(str(eid))
+
+    def do_copy():
+        QApplication.clipboard().setText(text.toPlainText())
+
+    find_btn.clicked.connect(do_find)
+    find_edit.returnPressed.connect(do_find)
+    jump_btn.clicked.connect(do_jump)
+    eid_edit.returnPressed.connect(do_jump)
+    copy_btn.clicked.connect(do_copy)
+    refresh_btn.clicked.connect(do_refresh)
+    dlg.show()
+    _hotspot_dialog = dlg
+
+
+def _register_hotspot_menu():
+    try:
+        rd.Extensions().RegisterWindowMenu(
+            qrenderdoc.WindowMenu.Tools, ["Frame Hotspots"], _open_hotspots
+        )
+        print("[rd_mcp_bridge] Tools -> Frame Hotspots registered")
+    except Exception as exc:
+        print("[rd_mcp_bridge] Frame Hotspots menu failed: %s" % exc)
+
+
 TOOLS = {
     "capture_info": tool_capture_info,
     "list_events": tool_list_events,
@@ -354,6 +774,12 @@ TOOLS = {
     "get_texture": tool_get_texture,
     "read_texture_b64": tool_read_texture_b64,
     "pixel_history": tool_pixel_history,
+    "frame_hotspots": tool_frame_hotspots,
+    "pass_costs": tool_pass_costs,
+    "heaviest_draws": tool_heaviest_draws,
+    "search_events": tool_search_events,
+    "resource_census": tool_resource_census,
+    "get_shader": tool_get_shader,
     "run_python": tool_run_python,
 }
 
@@ -469,6 +895,7 @@ def start():
     _timer = QTimer()
     _timer.timeout.connect(_pump)
     _timer.start(50)
+    _register_hotspot_menu()
     print("[rd_mcp_bridge] loaded (tools: %s)" % ", ".join(sorted(TOOLS)))
 
 

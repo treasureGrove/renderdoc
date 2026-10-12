@@ -141,6 +141,129 @@ TOOLS = [
         },
     },
     {
+        "name": "frame_hotspots",
+        "description": (
+            "Rank the loaded capture: per-pass draw/dispatch cost, the heaviest draws by "
+            "index count times instances, and the largest textures and buffers. Start here "
+            "when looking for an expensive pass or a VRAM spike. The 'text' field is a "
+            "markdown report."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "How many draws and resources to include (default 20).",
+                    "default": 20,
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "pass_costs",
+        "description": (
+            "Summarise each marker pass: draw count, dispatch count, estimated triangles "
+            "(indices/3 x instances) and compute thread groups, sorted by triangle cost. "
+            "The EID column is the marker to jump to."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum passes returned (default 40).",
+                    "default": 40,
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "heaviest_draws",
+        "description": (
+            "List the most expensive draw calls, ranked by index count times instance count. "
+            "Use the returned EID with fetch_eid or get_texture to inspect a hotspot."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "How many draws to return (default 20).",
+                    "default": 20,
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "search_events",
+        "description": (
+            "Find events whose name or parent marker contains a substring, for example "
+            "'shadow', 'gbuffer', or 'bloom'. Returns EIDs to pass to fetch_eid."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Case-insensitive substring."},
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum matches (default 50).",
+                    "default": 50,
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "resource_census",
+        "description": (
+            "List the largest textures and buffers in the capture by byte size, plus totals. "
+            "Use this to see what is occupying VRAM before opening individual resources."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "How many textures and buffers to list (default 20).",
+                    "default": 20,
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "get_shader",
+        "description": (
+            "Switch to an event and return the bound shader stages: entry point, constant "
+            "blocks, read-only resources, samplers, and truncated disassembly. Filter with "
+            "stage (vertex, pixel, compute, or an entry-point substring)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "eid": {"type": "integer", "description": "Event ID (default: current event)."},
+                "stage": {
+                    "type": "string",
+                    "description": "Optional stage or entry-point filter, e.g. 'pixel'.",
+                },
+                "disassembly": {
+                    "type": "boolean",
+                    "description": "Include disassembly text (default true).",
+                    "default": True,
+                },
+                "max_chars": {
+                    "type": "integer",
+                    "description": "Per-stage disassembly cap (default 8000, max 40000).",
+                    "default": 8000,
+                },
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "run_python",
         "description": (
             "Execute arbitrary python code inside the RenderDoc GUI (UI thread) and return "
@@ -199,7 +322,7 @@ def handle_request(req):
             "result": {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "renderdoc-mcp", "version": "0.1.0"},
+                "serverInfo": {"name": "renderdoc-mcp", "version": "0.2.0"},
             },
         }
 
@@ -213,7 +336,7 @@ def handle_request(req):
         params = req.get("params") or {}
         name = str(params.get("name", ""))
         args = dict(params.get("arguments") or {})
-        if name == "run_python":
+        if name in ("run_python", "get_shader"):
             timeout = float(args.pop("timeout", 120) or 120)
         else:
             timeout = 60.0

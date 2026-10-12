@@ -226,8 +226,10 @@ This is a **modern AAA game rendering pipeline** (likely using deferred renderin
 ## MCP Server（外部 AI 客户端接入）
 
 通过 **MCP（Model Context Protocol）** 把运行中的 qrenderdoc 暴露给 ZCode / Claude Code 等
-AI 客户端：`capture_info` / `list_events` / `fetch_eid` / `get_texture` / `run_python` 五个工具，
-让 AI 直接分析抓到的帧、保存渲染目标截图、执行任意 python。
+AI 客户端。除事件树、截图和像素历史外，还可以直接问「这帧贵在哪」：
+
+- **Tools → Frame Hotspots**：按 pass 汇总估算三角形、列出最重的 draw、按字节大小排出纹理和 buffer，选中一行即可跳到对应 EID。
+- MCP 工具 `frame_hotspots` / `pass_costs` / `heaviest_draws` / `search_events` / `resource_census` / `get_shader` 提供同一份数据，并带上绑定 shader 的入口、资源和反汇编。
 
 ```powershell
 # 一键安装 qrenderdoc 内的桥接扩展，再到 Tools → Manage Extensions 启用

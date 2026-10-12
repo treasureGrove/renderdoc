@@ -28,8 +28,8 @@ cd util\mcp-server
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-（手动方式：把 `rd_mcp_bridge.py` 和 `extension.json` 复制到
-`%APPDATA%\qrenderdoc\extensions\renderdoc_mcp\`。）
+（手动方式：把 `__init__.py`、`rd_mcp_bridge.py`、`rd_frame_stats.py` 和 `extension.json`
+复制到 `%APPDATA%\qrenderdoc\extensions\renderdoc_mcp\`。）
 
 ### 2. 在 qrenderdoc 里启用
 
@@ -65,7 +65,18 @@ ZCode / Claude Code 的 MCP 配置（`~/.zcode/mcp.json` 或对应客户端的�
 | `get_texture` | 把指定事件的颜色输出/深度缓冲存成 PNG 并返回路径（AI 客户端随后可直接读图） |
 | `read_texture_b64` | 同上但直接返回 base64 PNG 内容（可指定输出序号/深度、最长边限制） |
 | `pixel_history` | 查询单个像素的完整历史：每帧内每次修改的前后值与 rejection 标志（discard/深度/模板失败等） |
+| `frame_hotspots` | 一页报告：按 pass 汇总三角形开销、最重的 draw、最大的纹理和 buffer |
+| `pass_costs` | 每个 marker pass 的 draw/dispatch 数、估算三角形、计算线程组，按开销排序 |
+| `heaviest_draws` | 按 `索引数 × 实例数` 排序的 draw，返回可跳转的 EID |
+| `search_events` | 按名字子串找事件（如 `shadow` / `gbuffer` / `bloom`） |
+| `resource_census` | 按字节大小列出最大的纹理和 buffer，并给出显存合计 |
+| `get_shader` | 指定事件上绑定的 shader：入口、常量缓冲、贴图、采样器，以及截断后的反汇编 |
 | `run_python` | 在 RenderDoc UI 线程执行任意 python，可访问 `pyrenderdoc` / `renderdoc` / `qrenderdoc`；设置 `result` 变量返回值。万能兜底 |
+
+启用扩展后，qrenderdoc 菜单 **Tools → Frame Hotspots** 打开同一份报告（不经过 MCP）。
+选中表格里的一行再点 **Jump to EID** 会跳到对应事件；**Find** 按 pass/draw 名字过滤；
+**Copy** 把 Markdown 拷进剪贴板。三角形按 `索引数 / 3 × 实例数` 估算，triangle strip 和
+报告 0 索引的 indirect draw 会在报告开头注明。
 
 典型用法（在 AI 客户端里）：
 
@@ -78,7 +89,8 @@ ZCode / Claude Code 的 MCP 配置（`~/.zcode/mcp.json` 或对应客户端的�
 
 ```powershell
 # 占位桩测试在会话中以脚本形式运行过；快速自检：
-python -m py_compile util\mcp-server\rd_mcp.py util\mcp-server\rd_mcp_bridge.py
+python -m py_compile util\mcp-server\rd_mcp.py util\mcp-server\rd_mcp_bridge.py util\mcp-server\rd_frame_stats.py
+python util\mcp-server\test_rd_frame_stats.py
 # MCP 协议握手：
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python util\mcp-server\rd_mcp.py
 ```
