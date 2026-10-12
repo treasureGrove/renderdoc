@@ -210,6 +210,19 @@ class PassTimingsTest(unittest.TestCase):
         self.assertAlmostEqual(report["totals"]["gpu_seconds"], 1.0)
         self.assertEqual(report["passes"][0]["name"], "Shadow")
 
+    def test_pass_events_add_up_to_the_pass_and_omit_the_marker(self):
+        flat = self._flat()
+        durations = {1: 10.0, 2: 0.25, 3: 0.5, 4: 10.0, 5: 0.25}
+        breakdown = stats.pass_events(flat, "Shadow", durations=durations)
+        eids = [row["eid"] for row in breakdown["events"]]
+        self.assertEqual(eids, [3, 2])
+        self.assertNotIn(1, eids)
+        self.assertAlmostEqual(breakdown["gpu_seconds"], 0.75)
+        self.assertAlmostEqual(sum(row["pct"] for row in breakdown["events"]), 100.0)
+        self.assertAlmostEqual(breakdown["events"][0]["pct"], 100.0 * 0.5 / 0.75)
+        self.assertIn("Cascade", stats.format_pass_events(breakdown))
+        self.assertIn("#", stats.format_share(75.0))
+
     def test_nested_parent_timestamp_is_not_added(self):
         tree = [
             {

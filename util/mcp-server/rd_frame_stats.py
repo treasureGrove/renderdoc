@@ -280,6 +280,15 @@ def format_pct(pct):
     return "%.1f%%" % float(pct)
 
 
+def format_share(pct):
+    """Percent plus a 10-cell bar, so a sorted table still reads as a share."""
+    if pct is None:
+        return "---"
+    clamped = max(0.0, min(100.0, float(pct)))
+    filled = int(round(clamped / 10.0))
+    return "%.1f%% %s" % (float(pct), ("#" * filled) + ("-" * (10 - filled)))
+
+
 def _timing_key(event, depth):
     """Group a timing leaf into a pass.
 
@@ -481,6 +490,114 @@ def format_pass_timings(report, level=1):
             _comma(row.get("draws") or 0),
             _comma(row.get("dispatches") or 0),
             _comma(row.get("triangles") or 0),
+        ]
+        cmap = row.get("counters") or {}
+        for key in columns:
+            cells.append(_comma(round(cmap.get(key) or 0)))
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
+def pass_events(
+    flat,
+    pass_name,
+    durations=None,
+    counters=None,
+    counter_columns=None,
+    depth=None,
+):
+    """Leaf events inside one pass, each with its own GPU sample.
+
+    These are the events a marker's time is summed from. A marker row is not
+    included, and a parent timestamp is not listed here, so the milliseconds
+    add up to the pass without double counting.
+    """
+    flat = list(flat or [])
+    if depth is None:
+        depth = grouping_depth(flat)
+    columns = _counter_columns(counters, counter_columns) if counters is not None else []
+    rolled = {}
+    if durations is not None:
+        rolled, _frame = rollup_durations(flat, durations)
+    count_map = _eid_map(counters) if counters is not None else None
+    target = pass_name or ""
+    rows = []
+    for event in flat:
+        if int(event.get("nchildren") or 0) != 0 or event.get("kind") == "marker":
+            continue
+        if _timing_key(event, depth) != target:
+            continue
+        eid = int(event.get("eid") or 0)
+        kind = event.get("kind") or "other"
+        seconds = None
+        if durations is not None:
+            seconds = rolled.get(eid, 0.0)
+        row = {
+            "eid": eid,
+            "name": event.get("name") or kind,
+            "kind": kind,
+            "marker": event.get("marker") or "",
+            "triangles": (draw_cost(event) // 3) if kind == "draw" else 0,
+            "groups": dispatch_groups(event) if kind == "dispatch" else 0,
+            "indirect": bool(event.get("indirect")),
+            "gpu_seconds": seconds,
+            "gpu_ms": None if seconds is None else seconds * 1000.0,
+            "counters": {},
+        }
+        if count_map is not None:
+            for col in columns:
+                row["counters"][col] = _leaf_count(count_map, eid, col)
+        rows.append(row)
+
+    pass_seconds = 0.0
+    if durations is not None:
+        pass_seconds = sum(row["gpu_seconds"] or 0.0 for row in rows)
+        for row in rows:
+            if pass_seconds > 0.0:
+                row["pct"] = 100.0 * (row["gpu_seconds"] or 0.0) / pass_seconds
+            else:
+                row["pct"] = 0.0
+        rows.sort(key=lambda r: (r["gpu_seconds"] or 0.0, r["triangles"], r["groups"]), reverse=True)
+    else:
+        for row in rows:
+            row["pct"] = None
+        rows.sort(key=lambda r: (r["triangles"], r["groups"]), reverse=True)
+
+    return {
+        "pass": target,
+        "events": rows,
+        "gpu_seconds": pass_seconds if durations is not None else None,
+        "counter_columns": columns,
+    }
+
+
+def format_pass_events(breakdown):
+    breakdown = breakdown or {}
+    columns = list(breakdown.get("counter_columns") or [])
+    lines = ["## Events in %s" % (breakdown.get("pass") or "(none)"), ""]
+    if breakdown.get("gpu_seconds") is not None:
+        lines.append("- Pass GPU: %s ms" % format_ms(breakdown.get("gpu_seconds")))
+        lines.append("")
+    headers = ["EID", "Event", "Kind", "GPU ms", "% of pass", "Est. triangles", "Thread groups"]
+    headers.extend(_counter_label(key) for key in columns)
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join(["----:"] * len(headers)) + " |")
+    events = breakdown.get("events") or []
+    if not events:
+        lines.append("(no events)")
+        return "\n".join(lines) + "\n"
+    for row in events:
+        name = row.get("name") or ""
+        if row.get("indirect"):
+            name += " (indirect)"
+        cells = [
+            str(row.get("eid") or ""),
+            name.replace("|", "/"),
+            row.get("kind") or "",
+            format_ms(row.get("gpu_seconds")) if row.get("gpu_ms") is not None else "---",
+            format_pct(row.get("pct")),
+            _comma(row.get("triangles") or 0),
+            _comma(row.get("groups") or 0),
         ]
         cmap = row.get("counters") or {}
         for key in columns:

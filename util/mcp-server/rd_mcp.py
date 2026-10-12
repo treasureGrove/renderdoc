@@ -178,7 +178,9 @@ TOOLS = [
             "primitives the driver returned. Marker time is the sum of child events, matching "
             "the Event Browser, so a parent timestamp is not added on top. Without refresh, "
             "returns the geometric estimate plus the last cached sample if there is one. "
-            "refresh=true replays the frame via FetchCounters (slow; not stored in the .rdc)."
+            "Pass a pass name to also list the events inside that pass; their milliseconds "
+            "sum to the pass. refresh=true replays the frame via FetchCounters (slow; not "
+            "stored in the .rdc)."
         ),
         "inputSchema": {
             "type": "object",
@@ -193,6 +195,10 @@ TOOLS = [
                 "limit": {
                     "type": "integer",
                     "description": "Maximum passes returned (default: all).",
+                },
+                "pass": {
+                    "type": "string",
+                    "description": "Pass name from the table. Adds that pass's events, each with its own GPU time.",
                 },
             },
             "required": [],

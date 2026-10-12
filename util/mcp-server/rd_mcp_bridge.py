@@ -54,6 +54,8 @@ _timer = None
 _hotspot_dialog = None
 _pass_timings_panel = None
 _panel_cls = None
+_timing_viewer = None
+_last_flat = []
 
 # GPUCounter name, and the pass_timings column it fills. None means duration.
 _SAMPLE_COUNTERS = (
@@ -207,7 +209,26 @@ def _require_capture():
 
 
 def _flat_actions():
-    return rd_frame_stats.flatten(_actions_to_tree(rd.CurRootActions()))
+    global _last_flat
+    _last_flat = rd_frame_stats.flatten(_actions_to_tree(rd.CurRootActions()))
+    return _last_flat
+
+
+def _pass_events(pass_name):
+    durations = None
+    counters = None
+    columns = None
+    if _cache_current():
+        durations = _timing_cache["durations"]
+        counters = _timing_cache["counters"] if _timing_cache["counters"] is not None else {}
+        columns = _timing_cache["counter_columns"]
+    return rd_frame_stats.pass_events(
+        _last_flat,
+        pass_name,
+        durations=durations,
+        counters=counters,
+        counter_columns=columns,
+    )
 
 
 def _resource_name(rid):
@@ -528,10 +549,15 @@ def _sample_counters():
     try:
         rd.Replay().BlockInvoke(grab)
     except Exception as exc:
+        if _capture_key() != key:
+            return {"error": "capture changed while sampling"}
         _timing_cache["capture_key"] = key
         _timing_cache["sampled"] = False
         _timing_cache["error"] = "%s: %s" % (type(exc).__name__, exc)
         return {"error": _timing_cache["error"]}
+
+    if _capture_key() != key:
+        return {"error": "capture changed while sampling"}
 
     if box["error"]:
         _timing_cache["capture_key"] = key
@@ -626,6 +652,11 @@ def tool_pass_timings(args):
         limit = _limit(args, "limit", 40)
     report = _timing_report(limit=limit)
     report["cached"] = (not refresh) and _cache_current()
+    pass_name = str(args.get("pass") or args.get("pass_name") or "").strip()
+    if pass_name:
+        breakdown = _pass_events(pass_name)
+        report["events"] = breakdown["events"]
+        report["events_text"] = rd_frame_stats.format_pass_events(breakdown)
     report["sampling"] = (
         "refresh=true replays the frame with FetchCounters and can take a while. "
         "GPU milliseconds and invocation counters are not stored in the .rdc. "
@@ -1061,7 +1092,7 @@ def _ensure_panel_class():
     global _panel_cls
     if _panel_cls is not None:
         return _panel_cls
-    from PySide2.QtCore import Qt
+    from PySide2.QtCore import Qt, Signal
     from PySide2.QtWidgets import (
         QApplication,
         QHBoxLayout,
@@ -1090,14 +1121,18 @@ def _ensure_panel_class():
                 return str(left) < str(right)
 
     class PassTimingsPanel(QWidget):
+        sampleFinished = Signal(str)
+
         def __init__(self, parent=None):
             super(PassTimingsPanel, self).__init__(parent)
             self.setObjectName("PassTimingsPanel")
             self.setWindowTitle("Pass Timings")
-            self.setMinimumSize(780, 280)
+            self.setMinimumSize(780, 420)
             self._markdown = ""
+            self._report = None
             self._sampling = False
             self._docked = False
+            self.sampleFinished.connect(self._on_sample_finished, Qt.QueuedConnection)
 
             layout = QVBoxLayout(self)
             self._status = QLabel("Idle — geometric estimate only. Sample GPU counters to measure milliseconds.")
@@ -1117,13 +1152,26 @@ def _ensure_panel_class():
             self._table.setAlternatingRowColors(True)
             self._table.verticalHeader().setVisible(False)
             self._table.cellDoubleClicked.connect(self._on_double_click)
-            layout.addWidget(self._table, 1)
+            self._table.itemSelectionChanged.connect(self._fill_events)
+            layout.addWidget(self._table, 3)
+
+            self._events_label = QLabel("Select a pass to list the events that make up its time.")
+            self._events_label.setWordWrap(True)
+            layout.addWidget(self._events_label)
+            self._events = QTableWidget(0, 0)
+            self._events.setSelectionBehavior(QTableWidget.SelectRows)
+            self._events.setSelectionMode(QTableWidget.SingleSelection)
+            self._events.setEditTriggers(QTableWidget.NoEditTriggers)
+            self._events.setAlternatingRowColors(True)
+            self._events.verticalHeader().setVisible(False)
+            self._events.cellDoubleClicked.connect(self._on_event_double_click)
+            layout.addWidget(self._events, 2)
 
             buttons = QHBoxLayout()
             self._sample_btn = QPushButton("Sample GPU counters")
             self._sample_btn.setToolTip(
                 "Replay the frame and fetch EventGPUDuration plus invocation counters. "
-                "This is not stored in the capture and can take a while."
+                "The rest of the UI stays usable. The result is not stored in the capture."
             )
             jump_btn = QPushButton("Jump")
             copy_btn = QPushButton("Copy as markdown")
@@ -1147,11 +1195,27 @@ def _ensure_panel_class():
                 self._totals.setText("")
                 self._note.setText("Milliseconds appear after sampling. The sample replays the frame and is not stored in the .rdc.")
                 self._markdown = ""
+                self._report = None
                 self._table.setSortingEnabled(False)
                 self._table.setRowCount(0)
+                self._events.setSortingEnabled(False)
+                self._events.setRowCount(0)
+                self._events_label.setText("Select a pass to list the events that make up its time.")
                 return
             report = _timing_report()
             self._fill(report)
+
+        def clear_for_close(self):
+            self._markdown = ""
+            self._report = None
+            self._status.setText("Idle — load a capture, then sample GPU counters.")
+            self._totals.setText("")
+            self._note.setText("Milliseconds appear after sampling. The sample replays the frame and is not stored in the .rdc.")
+            self._events_label.setText("Select a pass to list the events that make up its time.")
+            self._table.setSortingEnabled(False)
+            self._table.setRowCount(0)
+            self._events.setSortingEnabled(False)
+            self._events.setRowCount(0)
 
         def _fill(self, report):
             error = report.get("error")
@@ -1186,6 +1250,7 @@ def _ensure_panel_class():
             self._totals.setText("  ·  ".join(bits))
             self._note.setText(report.get("note") or "")
             self._markdown = report.get("text") or ""
+            self._report = report
 
             columns = ["EID", "Pass", "GPU ms", "% of frame", "Draws", "Dispatches", "Est. triangles"]
             columns.extend(rd_frame_stats._counter_label(key) for key in report.get("counter_columns") or [])
@@ -1201,6 +1266,8 @@ def _ensure_panel_class():
             }
 
             table = self._table
+            keep_eid = self._selected_eid()
+            table.blockSignals(True)
             table.setSortingEnabled(False)
             table.clear()
             table.setColumnCount(len(columns))
@@ -1221,7 +1288,7 @@ def _ensure_panel_class():
                         rd_frame_stats.format_ms(row.get("gpu_seconds")) if row.get("gpu_ms") is not None else "---",
                         row.get("gpu_ms"),
                     ),
-                    (rd_frame_stats.format_pct(row.get("pct")), row.get("pct")),
+                    (rd_frame_stats.format_share(row.get("pct")), row.get("pct")),
                     (rd_frame_stats._comma(row.get("draws") or 0), int(row.get("draws") or 0)),
                     (rd_frame_stats._comma(row.get("dispatches") or 0), int(row.get("dispatches") or 0)),
                     (rd_frame_stats._comma(row.get("triangles") or 0), int(row.get("triangles") or 0)),
@@ -1248,6 +1315,92 @@ def _ensure_panel_class():
                 table.sortItems(2, Qt.DescendingOrder)
             elif table.columnCount() > 6:
                 table.sortItems(6, Qt.DescendingOrder)
+            select_row = 0 if table.rowCount() else -1
+            if keep_eid is not None:
+                for row_index in range(table.rowCount()):
+                    item = table.item(row_index, 0)
+                    if item is not None and item.data(Qt.UserRole) == keep_eid:
+                        select_row = row_index
+                        break
+            table.blockSignals(False)
+            if select_row >= 0:
+                table.selectRow(select_row)
+            else:
+                self._fill_events()
+
+        def _selected_pass_name(self):
+            row = self._table.currentRow()
+            if row < 0:
+                return None
+            item = self._table.item(row, 1)
+            if item is None:
+                return None
+            name = item.data(Qt.UserRole)
+            if name is None:
+                name = item.text()
+            name = str(name or "").strip()
+            return name or None
+
+        def _fill_events(self):
+            name = self._selected_pass_name()
+            table = self._events
+            table.setSortingEnabled(False)
+            table.clear()
+            table.setRowCount(0)
+            if not name or rd is None or not rd.IsCaptureLoaded():
+                self._events_label.setText("Select a pass to list the events that make up its time.")
+                return
+            breakdown = _pass_events(name)
+            events = breakdown.get("events") or []
+            if breakdown.get("gpu_seconds") is not None:
+                self._events_label.setText(
+                    "Events in %s — %s ms is the sum of these rows, not an extra parent timestamp."
+                    % (name, rd_frame_stats.format_ms(breakdown.get("gpu_seconds")))
+                )
+            else:
+                self._events_label.setText(
+                    "Events in %s — GPU milliseconds appear after sampling. Triangles are the geometric estimate."
+                    % name
+                )
+            columns = ["EID", "Event", "Kind", "GPU ms", "% of pass", "Est. triangles", "Thread groups"]
+            counter_keys = list(breakdown.get("counter_columns") or [])
+            columns.extend(rd_frame_stats._counter_label(key) for key in counter_keys)
+            table.setColumnCount(len(columns))
+            table.setHorizontalHeaderLabels(columns)
+            table.setRowCount(len(events))
+            for row_index, row in enumerate(events):
+                label = row.get("name") or ""
+                if row.get("indirect"):
+                    label += " (indirect)"
+                values = [
+                    (str(row.get("eid") or ""), int(row.get("eid") or 0)),
+                    (label, label),
+                    (row.get("kind") or "", row.get("kind") or ""),
+                    (
+                        rd_frame_stats.format_ms(row.get("gpu_seconds")) if row.get("gpu_ms") is not None else "---",
+                        row.get("gpu_ms"),
+                    ),
+                    (rd_frame_stats.format_share(row.get("pct")), row.get("pct")),
+                    (rd_frame_stats._comma(row.get("triangles") or 0), int(row.get("triangles") or 0)),
+                    (rd_frame_stats._comma(row.get("groups") or 0), int(row.get("groups") or 0)),
+                ]
+                cmap = row.get("counters") or {}
+                for key in counter_keys:
+                    amount = cmap.get(key) or 0
+                    values.append((rd_frame_stats._comma(round(amount)), float(amount)))
+                for col, (text, sort_value) in enumerate(values):
+                    if col in (1, 2):
+                        item = QTableWidgetItem(text)
+                    else:
+                        item = _NumItem(text)
+                        item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                    item.setData(Qt.UserRole, sort_value)
+                    table.setItem(row_index, col, item)
+            header = table.horizontalHeader()
+            header.setSectionResizeMode(QHeaderView.ResizeToContents)
+            if table.columnCount() > 1:
+                header.setSectionResizeMode(1, QHeaderView.Stretch)
+            table.setSortingEnabled(True)
 
         def _selected_eid(self):
             row = self._table.currentRow()
@@ -1272,27 +1425,60 @@ def _ensure_panel_class():
                 return
             self._jump_to(item.data(Qt.UserRole))
 
+        def _on_event_double_click(self, row, _column):
+            item = self._events.item(row, 0)
+            if item is None:
+                return
+            self._jump_to(item.data(Qt.UserRole))
+
         def _on_jump(self):
-            self._jump_to(self._selected_eid())
+            eid = None
+            row = self._events.currentRow()
+            selected = self._events.selectionModel()
+            if row >= 0 and selected is not None and selected.hasSelection():
+                item = self._events.item(row, 0)
+                if item is not None:
+                    eid = item.data(Qt.UserRole)
+            if eid is None:
+                eid = self._selected_eid()
+            self._jump_to(eid)
 
         def _on_copy(self):
-            QApplication.clipboard().setText(self._markdown)
+            text = self._markdown or ""
+            name = self._selected_pass_name()
+            if name:
+                text = text.rstrip() + "\n\n" + rd_frame_stats.format_pass_events(_pass_events(name))
+            QApplication.clipboard().setText(text)
 
         def _on_sample(self):
+            if self._sampling:
+                return
             if rd is None or not rd.IsCaptureLoaded():
                 self._status.setText("Load a capture first.")
                 return
             self._sampling = True
-            self._status.setText("Running — replaying the frame to sample GPU counters…")
             self._sample_btn.setEnabled(False)
-            QApplication.processEvents()
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            try:
-                _sample_counters()
-            finally:
-                QApplication.restoreOverrideCursor()
-                self._sample_btn.setEnabled(True)
-                self._sampling = False
+            self._status.setText(
+                "Replaying the frame to sample GPU counters. The rest of the UI stays usable; this can take a while."
+            )
+
+            def work():
+                message = ""
+                try:
+                    result = _sample_counters()
+                    if isinstance(result, dict) and result.get("error"):
+                        message = str(result["error"])
+                except Exception as exc:
+                    message = "%s: %s" % (type(exc).__name__, exc)
+                self.sampleFinished.emit(message)
+
+            threading.Thread(target=work, daemon=True).start()
+
+        def _on_sample_finished(self, message):
+            self._sampling = False
+            self._sample_btn.setEnabled(True)
+            if message:
+                self._status.setText("Error — %s" % message)
             self.reload()
 
     _panel_cls = PassTimingsPanel
@@ -1316,6 +1502,45 @@ def _dock_pass_timings(widget):
         widget.show()
 
 
+def _ensure_timing_viewer(panel):
+    global _timing_viewer
+    if _timing_viewer is not None:
+        _timing_viewer.panel = panel
+        return
+
+    class _TimingViewer(qrenderdoc.CaptureViewer):
+        def __init__(self):
+            super(_TimingViewer, self).__init__()
+            self.panel = None
+
+        def OnCaptureLoaded(self):
+            _reset_timing_cache()
+            panel_ref = self.panel
+            if not _panel_alive(panel_ref):
+                return
+            from PySide2.QtCore import QTimer
+
+            QTimer.singleShot(0, panel_ref.reload)
+
+        def OnCaptureClosed(self):
+            _reset_timing_cache()
+            if _panel_alive(self.panel):
+                self.panel.clear_for_close()
+
+        def OnEventChanged(self, _event):
+            return
+
+        def OnSelectedEventChanged(self, _event):
+            return
+
+    _timing_viewer = _TimingViewer()
+    _timing_viewer.panel = panel
+    try:
+        rd.AddCaptureViewer(_timing_viewer)
+    except Exception as exc:
+        print("[rd_mcp_bridge] Pass Timings capture watcher failed: %s" % exc)
+
+
 def _open_pass_timings(_ctx, _data):
     global _pass_timings_panel
     if not _panel_alive(_pass_timings_panel):
@@ -1325,6 +1550,7 @@ def _open_pass_timings(_ctx, _data):
             print("[rd_mcp_bridge] Pass Timings unavailable: %s" % exc)
             return
         _pass_timings_panel = cls(_main_window_widget())
+        _ensure_timing_viewer(_pass_timings_panel)
         _dock_pass_timings(_pass_timings_panel)
     else:
         _pass_timings_panel.reload()
@@ -1481,11 +1707,17 @@ def start():
 
 
 def unregister():
-    global _timer, _pass_timings_panel
+    global _timer, _pass_timings_panel, _timing_viewer
     _stop.set()
     if _timer is not None:
         _timer.stop()
         _timer = None
+    if _timing_viewer is not None and rd is not None:
+        try:
+            rd.RemoveCaptureViewer(_timing_viewer)
+        except Exception:
+            pass
+        _timing_viewer = None
     _pass_timings_panel = None
     print("[rd_mcp_bridge] unloaded")
 

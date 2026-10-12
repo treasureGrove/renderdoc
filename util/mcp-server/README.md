@@ -82,9 +82,10 @@ ZCode / Claude Code 的 MCP 配置（`~/.zcode/mcp.json` 或对应客户端的�
 **Tools → Pass Timings** 是单独的可停靠面板，用来管每个 pass 的 GPU 时间：
 
 - 打开后先看到三角形、draw、dispatch 估算，状态是 Idle。不会在加载 capture 时自动采样。
-- **Sample GPU counters** 通过 `FetchCounters` 回放整帧，读取 `EventGPUDuration`（秒，面板显示为毫秒）以及驱动实际支持的 PS/CS/VS invocations、samples passed、IA primitives。采样期间 UI 会等待回放结束。
+- **Sample GPU counters** 通过 `FetchCounters` 回放整帧，读取 `EventGPUDuration`（秒，面板显示为毫秒）以及驱动实际支持的 PS/CS/VS invocations、samples passed、IA primitives。回放在后台进行，其余界面可以继续用。
+- 上表是 pass：GPU 毫秒、占整帧比例、draw、dispatch、估算三角形。选中一行后，下表列出构成这个 pass 的事件，毫秒相加等于该 pass，不含 marker 自己的时间戳。
 - 表头给出整帧 GPU 毫秒、三角形和调用次数合计。默认按 GPU 毫秒从高到低排。
-- 双击一行或点 **Jump** 会 `SetEventID` 到该 pass 的 EID。**Copy as markdown** 复制表格。
+- 双击 pass 跳到该 marker；双击下面的事件，或选中它再点 **Jump**，会 `SetEventID` 到那个 draw。**Copy as markdown** 同时复制 pass 表和当前 pass 的事件表。
 - Marker 的时间是子事件之和（和 Event Browser 的 Duration 列一样），父级自己的时间戳不会再加一遍，避免重复计算。
 - 驱动不支持 `EventGPUDuration` 时，面板会写明毫秒不可用，三角形估算仍然在。
 - 这些毫秒和计数器不在 `.rdc` 里，只存在这次 qrenderdoc 会话的内存缓存中。MCP 的 `pass_timings` / `frame_hotspots` 会读这份缓存；只有 `refresh=true` 才再回放一次。
