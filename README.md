@@ -229,7 +229,8 @@ This is a **modern AAA game rendering pipeline** (likely using deferred renderin
 AI 客户端。除事件树、截图和像素历史外，还可以直接问「这帧贵在哪」：
 
 - **Tools → Frame Hotspots**：按 pass 汇总估算三角形、列出最重的 draw、按字节大小排出纹理和 buffer，选中一行即可跳到对应 EID。
-- MCP 工具 `frame_hotspots` / `pass_costs` / `heaviest_draws` / `search_events` / `resource_census` / `get_shader` 提供同一份数据，并带上绑定 shader 的入口、资源和反汇编。
+- **Tools → Pass Timings**：可停靠面板，按 pass 看 GPU 毫秒、占帧比例、draw/dispatch、估算三角形，以及驱动返回的 PS/CS/VS 调用、samples passed、IA primitives。需要手动采样（会回放整帧）；毫秒不在 .rdc 里。双击一行跳到该 EID。
+- MCP 工具 `frame_hotspots` / `pass_timings` / `pass_costs` / `heaviest_draws` / `search_events` / `resource_census` / `get_shader` 提供同一份数据。`pass_timings` 和 `frame_hotspots` 在 `refresh=true` 时才重新采样，否则复用上一次的毫秒缓存。
 
 ```powershell
 # 一键安装 qrenderdoc 内的桥接扩展，再到 Tools → Manage Extensions 启用

@@ -15,5 +15,6 @@ foreach ($name in @("__init__.py", "rd_mcp_bridge.py", "rd_frame_stats.py", "ext
 
 Write-Host "Installed bridge to $dst"
 Write-Host "Next: open qrenderdoc -> Tools -> Manage Extensions, and enable 'RenderDoc MCP Bridge'."
-Write-Host "Reload the extension if it was already enabled. Tools -> Frame Hotspots opens the cost report."
+Write-Host "Reload the extension if it was already enabled."
+Write-Host "Tools -> Frame Hotspots opens the cost report. Tools -> Pass Timings opens the GPU timing panel."
 Write-Host "Then configure your AI client to run: python `"$src\rd_mcp.py`""

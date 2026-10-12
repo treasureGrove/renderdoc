@@ -65,7 +65,8 @@ ZCode / Claude Code 的 MCP 配置（`~/.zcode/mcp.json` 或对应客户端的�
 | `get_texture` | 把指定事件的颜色输出/深度缓冲存成 PNG 并返回路径（AI 客户端随后可直接读图） |
 | `read_texture_b64` | 同上但直接返回 base64 PNG 内容（可指定输出序号/深度、最长边限制） |
 | `pixel_history` | 查询单个像素的完整历史：每帧内每次修改的前后值与 rejection 标志（discard/深度/模板失败等） |
-| `frame_hotspots` | 一页报告：按 pass 汇总三角形开销、最重的 draw、最大的纹理和 buffer |
+| `frame_hotspots` | 一页报告：按 pass 汇总三角形开销、最重的 draw、最大的纹理和 buffer。若已经采样过 GPU 计数器，报告里会带上毫秒和调用次数；`refresh=true` 才重新回放采样 |
+| `pass_timings` | 每个 pass 的 GPU 毫秒、占帧比例、draw/dispatch、估算三角形，以及驱动返回的 PS/CS/VS、samples passed、IA primitives。`refresh=true` 会回放整帧（可能较慢，结果不在 .rdc 里）；不传则复用 UI 线程上的上次采样 |
 | `pass_costs` | 每个 marker pass 的 draw/dispatch 数、估算三角形、计算线程组，按开销排序 |
 | `heaviest_draws` | 按 `索引数 × 实例数` 排序的 draw，返回可跳转的 EID |
 | `search_events` | 按名字子串找事件（如 `shadow` / `gbuffer` / `bloom`） |
@@ -73,10 +74,20 @@ ZCode / Claude Code 的 MCP 配置（`~/.zcode/mcp.json` 或对应客户端的�
 | `get_shader` | 指定事件上绑定的 shader：入口、常量缓冲、贴图、采样器，以及截断后的反汇编 |
 | `run_python` | 在 RenderDoc UI 线程执行任意 python，可访问 `pyrenderdoc` / `renderdoc` / `qrenderdoc`；设置 `result` 变量返回值。万能兜底 |
 
-启用扩展后，qrenderdoc 菜单 **Tools → Frame Hotspots** 打开同一份报告（不经过 MCP）。
+启用扩展后，qrenderdoc 菜单 **Tools → Frame Hotspots** 打开同一份几何/显存报告（不经过 MCP）。
 选中表格里的一行再点 **Jump to EID** 会跳到对应事件；**Find** 按 pass/draw 名字过滤；
 **Copy** 把 Markdown 拷进剪贴板。三角形按 `索引数 / 3 × 实例数` 估算，triangle strip 和
 报告 0 索引的 indirect draw 会在报告开头注明。
+
+**Tools → Pass Timings** 是单独的可停靠面板，用来管每个 pass 的 GPU 时间：
+
+- 打开后先看到三角形、draw、dispatch 估算，状态是 Idle。不会在加载 capture 时自动采样。
+- **Sample GPU counters** 通过 `FetchCounters` 回放整帧，读取 `EventGPUDuration`（秒，面板显示为毫秒）以及驱动实际支持的 PS/CS/VS invocations、samples passed、IA primitives。采样期间 UI 会等待回放结束。
+- 表头给出整帧 GPU 毫秒、三角形和调用次数合计。默认按 GPU 毫秒从高到低排。
+- 双击一行或点 **Jump** 会 `SetEventID` 到该 pass 的 EID。**Copy as markdown** 复制表格。
+- Marker 的时间是子事件之和（和 Event Browser 的 Duration 列一样），父级自己的时间戳不会再加一遍，避免重复计算。
+- 驱动不支持 `EventGPUDuration` 时，面板会写明毫秒不可用，三角形估算仍然在。
+- 这些毫秒和计数器不在 `.rdc` 里，只存在这次 qrenderdoc 会话的内存缓存中。MCP 的 `pass_timings` / `frame_hotspots` 会读这份缓存；只有 `refresh=true` 才再回放一次。
 
 典型用法（在 AI 客户端里）：
 
@@ -98,6 +109,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python util\
 ## 已知限制
 
 - `get_texture` / `fetch_eid` 会切换 UI 当前事件（副作用：AI 会"带着你看"它关注的事件）。
-- 桥接一次只处理一个请求（串行），UI 线程忙时请求排队，默认 120s 超时。
+- GPU 毫秒和 invocation 计数来自回放采样，不写进 capture。`pass_timings` / `frame_hotspots` 的 `refresh=true` 会占住 UI 线程直到 `FetchCounters` 结束；驱动不支持 `EventGPUDuration` 时没有毫秒，只有三角形估算和驱动返回的计数器。
+- 桥接一次只处理一个请求（串行），UI 线程忙时请求排队。采样类工具默认等 180s，其余默认 60s。
 - 扩展只在 qrenderdoc 运行时可用；无头（headless）批量分析请走 `renderdoc` python 模块的
   命令行接口，不经过本桥。

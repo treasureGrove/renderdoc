@@ -144,9 +144,11 @@ TOOLS = [
         "name": "frame_hotspots",
         "description": (
             "Rank the loaded capture: per-pass draw/dispatch cost, the heaviest draws by "
-            "index count times instances, and the largest textures and buffers. Start here "
-            "when looking for an expensive pass or a VRAM spike. The 'text' field is a "
-            "markdown report."
+            "index count times instances, and the largest textures and buffers. When the "
+            "Pass Timings panel (or pass_timings) has sampled GPU counters, the report also "
+            "includes per-pass milliseconds and invocation totals from that cached sample. "
+            "Set refresh=true to replay the frame and resample; that is slow and the numbers "
+            "are not stored in the .rdc. The 'text' field is a markdown report."
         ),
         "inputSchema": {
             "type": "object",
@@ -155,7 +157,43 @@ TOOLS = [
                     "type": "integer",
                     "description": "How many draws and resources to include (default 20).",
                     "default": 20,
-                }
+                },
+                "refresh": {
+                    "type": "boolean",
+                    "description": (
+                        "Replay the frame and resample GPU counters before building the report. "
+                        "Default false reuses the last sample."
+                    ),
+                    "default": False,
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "pass_timings",
+        "description": (
+            "Per-pass GPU milliseconds, percent of frame, draws, dispatches, estimated "
+            "triangles, and whichever of PS/CS/VS invocations, samples passed, and IA "
+            "primitives the driver returned. Marker time is the sum of child events, matching "
+            "the Event Browser, so a parent timestamp is not added on top. Without refresh, "
+            "returns the geometric estimate plus the last cached sample if there is one. "
+            "refresh=true replays the frame via FetchCounters (slow; not stored in the .rdc)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "refresh": {
+                    "type": "boolean",
+                    "description": (
+                        "Replay the frame and fetch GPU counters. Default false reuses the cache."
+                    ),
+                    "default": False,
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum passes returned (default: all).",
+                },
             },
             "required": [],
         },
@@ -322,7 +360,7 @@ def handle_request(req):
             "result": {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "renderdoc-mcp", "version": "0.2.0"},
+                "serverInfo": {"name": "renderdoc-mcp", "version": "0.3.0"},
             },
         }
 
@@ -336,10 +374,11 @@ def handle_request(req):
         params = req.get("params") or {}
         name = str(params.get("name", ""))
         args = dict(params.get("arguments") or {})
-        if name in ("run_python", "get_shader"):
-            timeout = float(args.pop("timeout", 120) or 120)
+        if name in ("run_python", "get_shader", "pass_timings", "frame_hotspots"):
+            timeout = float(args.get("timeout", 180) or 180)
+            args["timeout"] = timeout
         else:
-            timeout = 60.0
+            timeout = float(args.pop("timeout", 60) or 60)
         try:
             result = call_bridge(name, args, timeout)
             text = json.dumps(result, ensure_ascii=False, indent=2)
