@@ -200,6 +200,10 @@ TOOLS = [
                     "type": "string",
                     "description": "Pass name from the table. Adds that pass's events, each with its own GPU time.",
                 },
+                "event_limit": {
+                    "type": "integer",
+                    "description": "Maximum events returned for pass (default 200, slowest first).",
+                },
             },
             "required": [],
         },

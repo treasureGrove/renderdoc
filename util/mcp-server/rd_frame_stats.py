@@ -289,6 +289,70 @@ def format_share(pct):
     return "%.1f%% %s" % (float(pct), ("#" * filled) + ("-" * (10 - filled)))
 
 
+def ms_per_million_triangles(gpu_seconds, triangles):
+    """Milliseconds per million estimated triangles. None when either side is missing."""
+    if gpu_seconds is None or not triangles:
+        return None
+    millions = float(triangles) / 1000000.0
+    if millions <= 0.0:
+        return None
+    return (float(gpu_seconds) * 1000.0) / millions
+
+
+def format_rate(value):
+    if value is None:
+        return "---"
+    value = float(value)
+    if value >= 100.0:
+        return "%.0f" % value
+    if value >= 10.0:
+        return "%.1f" % value
+    return "%.2f" % value
+
+
+def classify_balance(gpu_seconds, triangles, frame_seconds, frame_triangles):
+    """Say whether a pass spends GPU time out of proportion to its triangles.
+
+    time-heavy: its share of GPU time is more than twice its share of triangles,
+    and it is at least 2% of the frame. geometry-heavy is the reverse. A pass
+    with time but no triangles is compute, clears, or indirect draws that
+    reported 0 indices. geometry only means milliseconds have not been sampled.
+    """
+    rate = ms_per_million_triangles(gpu_seconds, triangles)
+    if gpu_seconds is None:
+        return "geometry only", rate
+    if triangles <= 0 and gpu_seconds > 0:
+        return "time, no triangles", None
+    if not frame_seconds or frame_seconds <= 0:
+        return "timed", rate
+    time_share = float(gpu_seconds) / float(frame_seconds)
+    tri_share = (float(triangles) / float(frame_triangles)) if frame_triangles else 0.0
+    if time_share >= 0.02 and tri_share > 0.0 and time_share > tri_share * 2.0:
+        return "time-heavy", rate
+    if tri_share >= 0.02 and tri_share > time_share * 2.0:
+        return "geometry-heavy", rate
+    return "balanced", rate
+
+
+def pass_label(row):
+    name = (row or {}).get("name") or ""
+    extra = int((row or {}).get("indirect_zero") or 0)
+    if extra:
+        return "%s (+%d indirect/0)" % (name, extra)
+    return name
+
+
+def filter_passes(passes, query):
+    q = (query or "").strip().lower()
+    if not q:
+        return list(passes or [])
+    out = []
+    for row in passes or []:
+        if q in (row.get("name") or "").lower() or q in str(row.get("eid") or ""):
+            out.append(row)
+    return out
+
+
 def _timing_key(event, depth):
     """Group a timing leaf into a pass.
 
@@ -355,6 +419,7 @@ def pass_timings(
                 "cost": 0,
                 "triangles": 0,
                 "groups": 0,
+                "indirect_zero": 0,
                 "gpu_seconds": 0.0 if durations is not None else None,
                 "counters": {col: 0.0 for col in columns},
             }
@@ -385,6 +450,8 @@ def pass_timings(
             row["draws"] += 1
             row["cost"] += cost
             row["triangles"] += cost // 3
+            if event.get("indirect") and cost == 0:
+                row["indirect_zero"] += 1
         elif event.get("kind") == "dispatch":
             row["dispatches"] += 1
             row["groups"] += dispatch_groups(event)
@@ -432,6 +499,17 @@ def pass_timings(
     if limit is not None:
         rows = rows[: max(int(limit), 0)]
 
+    frame_tri = totals["triangles"]
+    for row in rows:
+        label, rate = classify_balance(
+            row["gpu_seconds"] if durations is not None else None,
+            row["triangles"],
+            totals["gpu_seconds"],
+            frame_tri,
+        )
+        row["balance"] = label
+        row["ms_per_mtri"] = rate
+
     if not sampled:
         note = UNSAMPLED_TIMING_NOTE
     elif not duration_supported:
@@ -471,9 +549,19 @@ def format_pass_timings(report, level=1):
     lines.append(report.get("note") or "")
     lines.append("")
 
-    headers = ["EID", "Pass", "GPU ms", "% of frame", "Draws", "Dispatches", "Est. triangles"]
+    headers = [
+        "EID",
+        "Pass",
+        "GPU ms",
+        "% of frame",
+        "Draws",
+        "Dispatches",
+        "Est. triangles",
+        "ms / Mtri",
+        "Balance",
+    ]
     headers.extend(_counter_label(key) for key in columns)
-    aligns = ["----:", "------", "------:", "----------:", "------:", "-----------:", "---------------:"]
+    aligns = ["----:", "------", "------:", "----------:", "------:", "-----------:", "---------------:", "---------:", "------"]
     aligns.extend(["------:"] * len(columns))
     lines.append("| " + " | ".join(headers) + " |")
     lines.append("| " + " | ".join(aligns) + " |")
@@ -484,12 +572,14 @@ def format_pass_timings(report, level=1):
         eid = "" if row.get("eid") is None else str(row["eid"])
         cells = [
             eid,
-            (row.get("name") or "").replace("|", "/"),
+            pass_label(row).replace("|", "/"),
             format_ms(row.get("gpu_seconds")) if row.get("gpu_ms") is not None else "---",
             format_pct(row.get("pct")),
             _comma(row.get("draws") or 0),
             _comma(row.get("dispatches") or 0),
             _comma(row.get("triangles") or 0),
+            format_rate(row.get("ms_per_mtri")),
+            row.get("balance") or "",
         ]
         cmap = row.get("counters") or {}
         for key in columns:
@@ -505,6 +595,7 @@ def pass_events(
     counters=None,
     counter_columns=None,
     depth=None,
+    limit=None,
 ):
     """Leaf events inside one pass, each with its own GPU sample.
 
@@ -542,6 +633,7 @@ def pass_events(
             "indirect": bool(event.get("indirect")),
             "gpu_seconds": seconds,
             "gpu_ms": None if seconds is None else seconds * 1000.0,
+            "ms_per_mtri": ms_per_million_triangles(seconds, (draw_cost(event) // 3) if kind == "draw" else 0),
             "counters": {},
         }
         if count_map is not None:
@@ -563,9 +655,15 @@ def pass_events(
             row["pct"] = None
         rows.sort(key=lambda r: (r["triangles"], r["groups"]), reverse=True)
 
+    total = len(rows)
+    shown = rows
+    if limit is not None:
+        shown = rows[: max(int(limit), 0)]
     return {
         "pass": target,
-        "events": rows,
+        "events": shown,
+        "event_count": total,
+        "omitted": total - len(shown),
         "gpu_seconds": pass_seconds if durations is not None else None,
         "counter_columns": columns,
     }
@@ -578,7 +676,14 @@ def format_pass_events(breakdown):
     if breakdown.get("gpu_seconds") is not None:
         lines.append("- Pass GPU: %s ms" % format_ms(breakdown.get("gpu_seconds")))
         lines.append("")
-    headers = ["EID", "Event", "Kind", "GPU ms", "% of pass", "Est. triangles", "Thread groups"]
+    omitted = int(breakdown.get("omitted") or 0)
+    if omitted:
+        lines.append(
+            "Showing %d of %d events. Percentages are of the whole pass."
+            % (len(breakdown.get("events") or []), int(breakdown.get("event_count") or 0))
+        )
+        lines.append("")
+    headers = ["EID", "Event", "Kind", "GPU ms", "% of pass", "Est. triangles", "ms / Mtri", "Thread groups"]
     headers.extend(_counter_label(key) for key in columns)
     lines.append("| " + " | ".join(headers) + " |")
     lines.append("| " + " | ".join(["----:"] * len(headers)) + " |")
@@ -597,6 +702,7 @@ def format_pass_events(breakdown):
             format_ms(row.get("gpu_seconds")) if row.get("gpu_ms") is not None else "---",
             format_pct(row.get("pct")),
             _comma(row.get("triangles") or 0),
+            format_rate(row.get("ms_per_mtri")),
             _comma(row.get("groups") or 0),
         ]
         cmap = row.get("counters") or {}

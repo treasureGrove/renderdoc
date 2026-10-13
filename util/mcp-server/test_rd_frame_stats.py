@@ -382,6 +382,87 @@ class PassTimingsTest(unittest.TestCase):
         self.assertEqual(limited["totals"]["triangles"], full["totals"]["triangles"])
         self.assertEqual(limited["totals"]["dispatches"], 1)
 
+    def test_balance_compares_time_share_with_triangle_share(self):
+        tree = [
+            {
+                "eid": 1,
+                "name": "Lighting",
+                "kind": "marker",
+                "children": [
+                    {"eid": 2, "name": "Shade", "kind": "draw", "num_indices": 300, "num_instances": 1}
+                ],
+            },
+            {
+                "eid": 3,
+                "name": "Depth",
+                "kind": "marker",
+                "children": [
+                    {"eid": 4, "name": "Big", "kind": "draw", "num_indices": 300000, "num_instances": 1}
+                ],
+            },
+        ]
+        flat = stats.flatten(tree)
+        report = stats.pass_timings(flat, durations={2: 0.9, 4: 0.1})
+        by_name = {row["name"]: row for row in report["passes"]}
+        self.assertEqual(by_name["Lighting"]["balance"], "time-heavy")
+        self.assertEqual(by_name["Depth"]["balance"], "geometry-heavy")
+        self.assertGreater(by_name["Lighting"]["ms_per_mtri"], by_name["Depth"]["ms_per_mtri"])
+        self.assertEqual(by_name["Lighting"]["triangles"], 100)
+        self.assertIn("time-heavy", report["text"])
+
+    def test_event_limit_keeps_the_slowest_and_reports_the_rest(self):
+        children = []
+        durations = {}
+        for index in range(5):
+            eid = index + 1
+            children.append(
+                {
+                    "eid": eid,
+                    "name": "Draw%d" % eid,
+                    "kind": "draw",
+                    "num_indices": 30,
+                    "num_instances": 1,
+                }
+            )
+            durations[eid] = 0.1 * eid
+        flat = stats.flatten([{"eid": 10, "name": "Frame", "kind": "marker", "children": children}])
+        # Single root marker, so the pass name is one level deeper.
+        name = stats.pass_timings(flat, durations=durations)["passes"][0]["name"]
+        breakdown = stats.pass_events(flat, name, durations=durations, limit=2)
+        self.assertEqual(breakdown["event_count"], 5)
+        self.assertEqual(breakdown["omitted"], 3)
+        self.assertEqual([row["eid"] for row in breakdown["events"]], [5, 4])
+        self.assertIn("Showing 2 of 5", stats.format_pass_events(breakdown))
+
+    def test_indirect_zero_is_called_out_and_does_not_invent_triangles(self):
+        flat = stats.flatten(
+            [
+                {
+                    "eid": 1,
+                    "name": "Indirect",
+                    "kind": "marker",
+                    "children": [
+                        {
+                            "eid": 2,
+                            "name": "DrawIndirect",
+                            "kind": "draw",
+                            "num_indices": 0,
+                            "num_instances": 1,
+                            "indirect": True,
+                        }
+                    ],
+                }
+            ]
+        )
+        report = stats.pass_timings(flat, durations={2: 0.2})
+        row = report["passes"][0]
+        self.assertEqual(row["triangles"], 0)
+        self.assertEqual(row["indirect_zero"], 1)
+        self.assertEqual(row["balance"], "time, no triangles")
+        self.assertIn("indirect/0", stats.pass_label(row))
+        self.assertEqual(len(stats.filter_passes(report["passes"], "nope")), 0)
+        self.assertEqual(stats.filter_passes(report["passes"], "indirect")[0]["eid"], row["eid"])
+
 
 if __name__ == "__main__":
     unittest.main()
